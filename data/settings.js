@@ -13,9 +13,9 @@ window.QUIZ_SETTINGS = {
 
   /* 분야 = 월드. 왼쪽부터 순서대로 나옵니다.
      icon : book, note, eye, bulb 중 선택
-     stage: 문제 화면 배경(월드 테마). day(눈 덮인 평원), water(물속), sky(하늘), cave(지하 얼음 동굴)
+     stage: 문제 화면 배경(월드 테마). 난이도마다 같은 월드가 낮·노을·밤으로 바뀝니다 (levels 의 time). day(눈 덮인 평원), water(물속), sky(하늘), cave(지하 얼음 동굴)
             예전 테마 night(밤 마을), sunset(노을 언덕), ice(얼음 동굴)도 쓸 수 있습니다.
-     color: 분야 간판 색. 성 스테이지의 깃발·창문 색도 이 색을 씁니다.
+     color: 분야 간판 색.
      bgm  : 문제 화면 배경음. 아래 levels 순서(하, 중, 상)대로 한 곡씩. 비우면("") 조용합니다. */
   categories: [
     { name: "상식", icon: "book", stage: "day", color: "#2f7ae8",
@@ -38,11 +38,11 @@ window.QUIZ_SETTINGS = {
 
   /* 월드 안의 줄(난이도). 위에서부터 순서대로 나오고, 아래로 갈수록 별이 늘어납니다.
      color : 칸 색. green, gold, red, blue, purple 중 선택
-     castle: true 이면 그 난이도는 월드의 마지막 관문 '성' 스테이지 (돌벽·용암·횃불 배경) */
+     time  : 문제 화면 배경의 시간대. day(낮) · dusk(노을) · night(밤). 같은 분야 월드가 이 시간대 빛으로 바뀝니다 */
   levels: [
-    { name: "하", color: "green" },
-    { name: "중", color: "gold" },
-    { name: "상", color: "red", castle: true }
+    { name: "하", color: "green", time: "day" },
+    { name: "중", color: "gold",  time: "dusk" },
+    { name: "상", color: "red",   time: "night" }
   ],
 
   /* 줄마다 칸 수 (1~4) */

@@ -73,7 +73,8 @@ kbd { display: inline-block; min-width: 1.5em; padding: 0 .3em; margin: 0 .15em;
 .card-world img { width: 60px; height: 60px; image-rendering: pixelated; }
 .card-stage { display: flex; align-items: center; gap: 18px; font-size: 44px; color: #ffd23f; letter-spacing: 4px; }
 .card-stage img { width: 48px; height: 48px; image-rendering: pixelated; }
-.card-stage.castle { color: #ff7a4a; }
+.card-stage.dusk { color: #ff9a6a; }
+.card-stage.night { color: #9ab4ff; }
 .card-name { font-size: 132px; color: #fff; text-shadow: 0 12px 0 var(--c); letter-spacing: 12px; }
 .card-level { font-size: 77px; color: #fff; letter-spacing: 6px; }
 .card-level em { font-style: normal; color: var(--gold); margin-left: 24px; font-size: 55px; }
@@ -363,8 +364,7 @@ kbd { display: inline-block; min-width: 1.5em; padding: 0 .3em; margin: 0 .15em;
 .pipe.small:not(.empty):not(.cursor):hover { filter: drop-shadow(8px 8px 0 #000) brightness(1.15); }
 .pipe-front.small { width: 80px; height: 64px; }
 .tower-bg { position: absolute; background-size: 100% 100%; image-rendering: pixelated; box-shadow: 0 0 0 6px #000, 12px 12px 0 6px rgba(0,0,0,.45); }
-.tower-bg.castle { box-shadow: 0 0 0 6px #000; }
-.tower-bg.world::before { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(0,0,0,.18), transparent 30%); }
+.tower-bg.top::before { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(0,0,0,.18), transparent 30%); }
 .pipe-room .platform { height: 64px; background-size: 64px 64px; filter: drop-shadow(8px 8px 0 #000); }
 .pipe-room .platform b { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); padding: 2px 12px; font-size: 22px; line-height: 30px; color: #fff; white-space: nowrap; background: var(--ink); box-shadow: 0 0 0 3px #fff; }
 .pipe-room .platform b .ico { width: 22px; height: 22px; image-rendering: pixelated; vertical-align: -3px; margin-right: 8px; }

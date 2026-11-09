@@ -5,7 +5,8 @@
          sky    하늘 — 구름 바다, 떠 있는 눈섬, 큰 버섯 발판, 구름 땅
          cave   지하 — 파란 벽돌 기둥, 고드름 천장, 얼음 결정
          castle 성 — 돌벽·아치 창문, 용암, 횃불 기둥, 불티 (tint 로 깃발·창문 색을 바꾼다)
-         night · sunset · ice  예전 겨울 테마 (그대로 쓸 수 있다) */
+         night · sunset · ice  예전 겨울 테마 (그대로 쓸 수 있다)
+   시간대 tod: 같은 월드를 낮(day) · 노을(dusk) · 밤(night) 색으로. 문제 화면은 난이도 하·중·상 = 낮·노을·밤 */
 (function () {
   const { Grid, ellipse, rect, rrect, tri, any, INK } = window.Pixel;
   const VW = 320, VH = 180, GY = 138; /* 땅 윗면 = 138칸 = 828px. 154칸(924px) 아래는 검은 상태 막대 */
@@ -648,11 +649,104 @@
   }
   const STAGE_BUILD = { water: buildWater, sky: buildSkyStage, cave: buildCave, castle: buildCastle };
 
+  /* =====================================================================
+     시간대 (난이도 = 같은 월드의 다른 시간). tod: 'day' 낮 · 'dusk' 노을 · 'night' 밤
+     월드 그림은 그대로 두고 색만 바꿔서, 같은 풍경이 노을빛·밤빛으로 물든다.
+     평원·하늘은 하늘을 새로 칠하고 해(노을)·달과 별(밤)을 띄운다.
+     ===================================================================== */
+  const TOD = {
+    dusk: {
+      ramp: [[0, [36, 10, 44]], [.4, [150, 50, 96]], [.7, [236, 112, 92]], [1, [255, 218, 160]]], amt: .64,
+      sky: ['#3a1a5e', '#6a2a72', '#a83a78', '#e0567a', '#ff8a6a', '#ffb878']
+    },
+    night: {
+      ramp: [[0, [4, 6, 26]], [.4, [28, 42, 106]], [.75, [90, 112, 192]], [1, [216, 228, 255]]], amt: .66,
+      sky: ['#04061e', '#070c2c', '#0c1440', '#121c52', '#1a2862', '#24346e']
+    }
+  };
+  const OPEN_SKY = { day: 1, sky: 1 }; /* 하늘이 보이는 월드 */
+  function rampAt(ramp, L) {
+    let i = 0;
+    while (i < ramp.length - 2 && L > ramp[i + 1][0]) i++;
+    const [a, ca] = ramp[i], [b, cb] = ramp[i + 1], k = Math.max(0, Math.min(1, (L - a) / (b - a)));
+    return [0, 1, 2].map((j) => ca[j] + (cb[j] - ca[j]) * k);
+  }
+  /* 그림 한 장의 색을 시간대에 맞게 바꾼 새 그림 */
+  function regrade(img, tod, amt) {
+    const T = TOD[tod];
+    const c = document.createElement('canvas');
+    c.width = img.width; c.height = img.height;
+    const x = c.getContext('2d');
+    x.drawImage(img, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height), px = d.data, k = amt == null ? T.amt : amt, memo = {};
+    for (let i = 0; i < px.length; i += 4) {
+      if (!px[i + 3]) continue;
+      const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
+      let out = memo[key];
+      if (!out) {
+        const r = px[i], g = px[i + 1], b = px[i + 2], L = (r * .3 + g * .55 + b * .15) / 255;
+        const m = rampAt(T.ramp, L);
+        out = memo[key] = [r + (m[0] - r) * k, g + (m[1] - g) * k, b + (m[2] - b) * k].map((v) => (tod === 'night' ? v * .82 : v) | 0);
+      }
+      px[i] = out[0]; px[i + 1] = out[1]; px[i + 2] = out[2];
+    }
+    x.putImageData(d, 0, 0);
+    return c;
+  }
+  /* 평원·하늘의 새 하늘: 바둑판 띠 그러데이션 + 해 또는 달 */
+  function todSky(tod) {
+    const cols = TOD[tod].sky, n = cols.length;
+    const bands = cols.map((c, i) => [c, Math.round(i * (GY - 10) / n)]);
+    const g = new Grid(VW, VH);
+    for (let y = 0; y < VH; y++) {
+      let i = 0;
+      while (i < n - 1 && y >= bands[i + 1][1]) i++;
+      for (let x = 0; x < VW; x++) {
+        const nx = bands[i + 1];
+        let v = bands[i][0];
+        if (nx && y >= nx[1] - 2 && (x + y) % 2 === 0) v = nx[0];
+        else if (nx && y >= nx[1] - 4 && y < nx[1] - 2 && x % 2 === 0 && y % 2 === 0) v = nx[0];
+        g.set(x, y, v);
+      }
+    }
+    if (tod === 'dusk') {
+      /* 지평선에 걸린 큰 해, 가로 줄무늬로 잘린다 */
+      g.part(ellipse(236, 104, 24, 24), { fill: '#ffe08a', light: '#fff4c0' });
+      for (let y = 88; y < 130; y += 6) for (let x = 210; x < 262; x++) if (y % 12 === 4) g.set(x, y, '#ff9a6a');
+    } else {
+      g.part(ellipse(258, 30, 12, 12), { fill: '#fff6c8', line: '#c8b878', shade: '#e8d890' });
+      g.part(ellipse(264, 26, 9, 9), { fill: cols[0] });
+      g.part(ellipse(254, 36, 2, 2), { fill: '#e8d890' });
+    }
+    return g.toCanvas();
+  }
+  /* 이미 만든 월드 그림 묶음 L 을 시간대 tod 로 */
+  function timeOf(name, L, tod) {
+    const out = { ...L };
+    Object.keys(L).forEach((k) => { if (L[k] instanceof HTMLCanvasElement) out[k] = regrade(L[k], tod); });
+    if (L.strips) out.strips = L.strips.map((s) => ({ ...s, img: regrade(s.img, tod) }));
+    if (OPEN_SKY[name]) {
+      out.sky = todSky(tod);
+      if (tod === 'night') out.stars = Array.from({ length: 50 }, (_, i) => [(i * 73) % VW, (i * 37) % 100, i % 5]);
+    } else if (L.sky) out.sky = regrade(L.sky, tod, tod === 'night' ? .8 : .45);
+    if (L.band) out.band = '#' + regradeHex(L.band, tod);
+    return out;
+  }
+  function regradeHex(hex, tod) {
+    const n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255, T = TOD[tod];
+    const m = rampAt(T.ramp, (r * .3 + g * .55 + b * .15) / 255);
+    return [r, g, b].map((v, j) => ((v + (m[j] - v) * T.amt) * (tod === 'night' ? .82 : 1)) | 0).map((v) => v.toString(16).padStart(2, '0')).join('');
+  }
+
   /* ---------- 상태 ---------- */
   const W = { cv: null, g: null, mode: 'side', theme: 'day', tint: null, fx: 'snow', cam: 0, vel: 0, pan: null, layers: {}, map: null, snow: [], t: 0, last: 0, shake: 0 };
   const LAYER_W = { far: 320, hills: 384, clouds: 480, near: 512 };
 
-  function layers(name, tint) {
+  function layers(name, tint, tod) {
+    if (tod && TOD[tod]) {
+      const k = `${name}|${tint || ''}|${tod}`;
+      return W.layers[k] || (W.layers[k] = timeOf(name, layers(name, tint), tod));
+    }
     if (STAGE_BUILD[name]) {
       const k = name + (name === 'castle' ? `|${tint || ''}` : '');
       return W.layers[k] || (W.layers[k] = STAGE_BUILD[name](tint));
@@ -668,6 +762,7 @@
       near: buildNear(th, LAYER_W.near, name),
       props: buildProps(th, 640, name),
       ground: buildGround(th),
+      band: th.hill.fill,
       stars: name === 'night' ? Array.from({ length: 50 }, (_, i) => [(i * 73) % VW, (i * 37) % 110, i % 5]) : null
     });
   }
@@ -679,27 +774,31 @@
     for (; x < VW; x += w) SG.drawImage(img, Math.round(x), y);
   }
   /* 옆 스크롤 스테이지 한 장면을 g 에 그린다 */
-  function paintScene(g, theme, tint, cam, t, trees, props) {
-    SG = g; SCAM = cam;
-    if (STAGE_BUILD[theme]) {
-      const L = layers(theme, tint);
-      g.drawImage(L.sky, 0, 0);
-      L.strips.forEach((s) => strip(s.img, s.par, s.y, s.drift ? t * s.drift : 0));
-      strip(L.ground, 1, GY);
-      return;
-    }
-    const L = layers(theme);
-    g.drawImage(L.sky, 0, 0);
+  function stars(g, L, t, cam) {
     if (L.stars) L.stars.forEach(([x, y, k]) => {
       const on = Math.floor(t * 2 + k * 1.7) % 5 !== 0;
       g.fillStyle = on ? '#ffffff' : '#8a8ad0';
       g.fillRect(((x - cam * .05) % VW + VW) % VW, y, 1, 1);
       if (k === 0 && on) { g.fillRect(((x - cam * .05) % VW + VW) % VW - 1, y, 3, 1); g.fillRect(((x - cam * .05) % VW + VW) % VW, y - 1, 1, 3); }
     });
+  }
+  function paintScene(g, theme, tint, cam, t, trees, props, tod) {
+    SG = g; SCAM = cam;
+    if (STAGE_BUILD[theme]) {
+      const L = layers(theme, tint, tod);
+      g.drawImage(L.sky, 0, 0);
+      stars(g, L, t, cam);
+      L.strips.forEach((s) => strip(s.img, s.par, s.y, s.drift ? t * s.drift : 0));
+      strip(L.ground, 1, GY);
+      return;
+    }
+    const L = layers(theme, null, tod);
+    g.drawImage(L.sky, 0, 0);
+    stars(g, L, t, cam);
     strip(L.far, .08, GY - 100);
     strip(L.clouds, .2, theme === 'ice' ? 0 : 6, theme === 'ice' ? 0 : t * 3);
     strip(L.hills2, .25, GY - 82);
-    g.fillStyle = (THEMES[theme] || THEMES.day).hill.fill;
+    g.fillStyle = L.band;
     g.fillRect(0, GY - 14, VW, 14);
     strip(L.hills, .4, GY - 66);
     if (trees !== false) strip(L.near, .7, GY - 59);
@@ -710,7 +809,7 @@
   function draw() {
     const g = W.g;
     if (W.mode === 'map' && W.map) g.drawImage(W.map, 0, 0);
-    else paintScene(g, W.theme, W.tint, W.cam, W.t, W.trees, W.props);
+    else paintScene(g, W.theme, W.tint, W.cam, W.t, W.trees, W.props, W.tod);
     /* 떠다니는 알갱이: 눈 / 물방울 / 먼지 / 불티 */
     const fx = W.mode === 'map' ? 'snow' : W.fx;
     W.snow.forEach((f, i) => {
@@ -785,8 +884,8 @@
       requestAnimationFrame(frame);
     },
     /* 옆 스크롤 스테이지 */
-    side(theme, { vel = 0, props = true, trees = true, tint = null } = {}) {
-      W.mode = 'side'; W.theme = THEMES[theme] || STAGE_BUILD[theme] ? theme : 'day'; W.tint = tint;
+    side(theme, { vel = 0, props = true, trees = true, tint = null, tod = null } = {}) {
+      W.mode = 'side'; W.theme = THEMES[theme] || STAGE_BUILD[theme] ? theme : 'day'; W.tint = tint; W.tod = TOD[tod] ? tod : null;
       W.fx = STAGE_BUILD[W.theme] ? layers(W.theme, tint).fx : 'snow';
       if (W.fx !== 'snow') W.snow.forEach((f) => { f.y = Math.random() * GY; });
       W.vel = vel; W.pan = null; W.props = props; W.trees = trees;
@@ -795,12 +894,12 @@
     pan(dx, ms = 1200) { W.vel = 0; W.pan = { from: W.cam, to: W.cam + dx, start: performance.now(), ms }; },
     speed(v) { W.vel = v; W.pan = null; },
     /* 스테이지 한 부분을 잘라 그림 주소(dataURL)로. 파이프 판의 탑 배경에 쓴다 (칸 단위) */
-    snapshot(theme, { tint = null, cam = 0, x = 0, y = 0, w = VW, h = VH, trees = true, props = false } = {}) {
+    snapshot(theme, { tint = null, tod = null, cam = 0, x = 0, y = 0, w = VW, h = VH, trees = true, props = false } = {}) {
       const c = document.createElement('canvas');
       c.width = VW; c.height = VH;
       const g = c.getContext('2d');
       g.imageSmoothingEnabled = false;
-      paintScene(g, THEMES[theme] || STAGE_BUILD[theme] ? theme : 'day', tint, cam, 0, trees, props);
+      paintScene(g, THEMES[theme] || STAGE_BUILD[theme] ? theme : 'day', tint, cam, 0, trees, props, TOD[tod] ? tod : null);
       const out = document.createElement('canvas');
       out.width = w; out.height = h;
       out.getContext('2d').drawImage(c, x, y, w, h, 0, 0, w, h);
