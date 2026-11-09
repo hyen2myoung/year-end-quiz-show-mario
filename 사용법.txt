@@ -97,7 +97,13 @@ F5, Ctrl+R, 뒤로 가기는 막혀 있습니다. 브라우저 버튼으로 새�
 배경음: 표지는 Super Mario Bros 「Overworld Theme」, 문제 고르는 파이프 화면은 Super Mario Bros 3 「World Map 1·2·3·4·7」을 차례로 돌려 틉니다.
   문제·정답 화면에서는 꺼지고, 지도로 돌아오면 멈췄던 곳부터 이어집니다. 곡 파일은 assets/bgm 폴더, 곡 목록·음량은 settings.js 의 bgmTracks / bgmVolume.
   브라우저 정책상 첫 클릭(또는 키 입력) 뒤부터 소리가 납니다. 끄려면 settings.js 의 bgm: false.
-효과음은 아직 넣지 않았습니다(sound: false). 소리를 낼 자리는 assets/sound.js 에 이름별로(점프, 블록 치기, 동전, 타이머, 시간 종료, 클리어 등) 만들어 두었습니다.
+효과음: 받아 둔 마리오 효과음을 원작에서 그 소리가 나는 동작에 붙였습니다 (assets/sfx 폴더, 앞뒤 빈 소리를 자르고 음량을 맞춤).
+  점프 = Jump, 블록 치기·새로고침 막힘 = Bump, 동전 = Coin, 펭귄 밟기 = Stomp, 파이프 = Pipe,
+  게임 시작 = 1UP, 정답 공개 = Item Block → PowerUp, 정답 화면 = Level Clear, 깃발 = FlagPole,
+  모든 문제 끝 = Castle Clear + Fireworks, 시간 종료 = Lose a Life.
+  타이머 5·10·15초는 P Switch 곡이 남은 시간에 맞춰 나오고, 멈추면 같이 멈췄다가 이어집니다.
+  커서·메뉴·대화창·멈춤의 짧은 삑 소리는 코드로 만든 8비트 소리입니다.
+  전체 표는 assets/sound.js 맨 위. 음량은 settings.js 의 sfxVolume, 끄려면 sound: false.
 
 [디자인]
 옛날 게임 플레이 화면을 참고해 이렇게 맞췄습니다.

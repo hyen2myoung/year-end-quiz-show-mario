@@ -305,6 +305,7 @@
   const fmt = (sec) => { const s = Math.max(0, Math.floor(sec || 0)); return `${Math.floor(s / 60)}:${pad2(s % 60)}`; };
   function stopAudio() {
     Bgm.hold(false);
+    Sound.timer.stop();
     if (!currentAudio) return;
     currentAudio.pause();
     currentAudio.removeAttribute('src');
@@ -1138,9 +1139,11 @@
       const frame = () => {
         if (!alive(s)) return;
         const t = state.timer;
+        /* 5·10·15초 타이머는 길이가 꼭 맞는 P Switch 곡을 남은 시간에 맞춰 튼다 */
+        if (t) Sound.timer.sync(t.status, t.duration, t.status === 'running' ? t.endsAt - Date.now() : t.remaining);
         if (t && t.status === 'running') {
           const sec = Math.ceil((t.endsAt - Date.now()) / 1000);
-          if (sec !== this.lastSec && sec > 0) { this.lastSec = sec; Sound.play('tick', { urgent: sec <= (SET.urgentSeconds || 5) }); }
+          if (sec !== this.lastSec && sec > 0) { this.lastSec = sec; if (!Sound.timer.has(t.duration)) Sound.play('tick', { urgent: sec <= (SET.urgentSeconds || 5) }); }
           if (t.endsAt <= Date.now()) timeUp(s);
         }
         this.paint();
@@ -1207,7 +1210,8 @@
     Clock.lastSec = null;
     save();
     paintTimerButtons();
-    Sound.play('timerStart');
+    Sound.timer.stop(); /* 다시 누르면 곡도 처음부터 */
+    Sound.play('timerStart', { sec });
     const b = block || document.querySelector(`.tblock[data-sec="${sec}"]`);
     const { gureum, noeul } = heroes;
     /* 노을이가 시계를 번쩍 든다 */
@@ -1253,7 +1257,7 @@
     t.status = 'running';
     t.endsAt = Date.now() + t.remaining;
     Clock.lastSec = null;
-    Sound.play('timerStart');
+    Sound.play('timerStart', { sec: t.duration });
     bump(block || $('#timerStop'));
     heroes.gureum.say('다시 시작!', 1200);
     save();

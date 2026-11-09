@@ -43,8 +43,10 @@ window.QUIZ_SETTINGS = {
 
   snowAmount: 120,      /* 눈송이 개수. 행사 PC가 느리면 50 정도로 낮추세요 */
 
-  /* 효과음은 아직 꺼 두었습니다 (넣을 자리는 assets/sound.js). */
-  sound: false,
+  /* 효과음. 받아 둔 마리오 효과음(assets/sfx)을 동작마다 붙였습니다. 어느 동작에 어떤 소리인지는 assets/sound.js 맨 위 표.
+     타이머 5·10·15초는 길이가 꼭 맞는 P Switch 곡이 나옵니다. */
+  sound: true,
+  sfxVolume: 0.8,       /* 효과음 음량 0 ~ 1 */
 
   /* 배경음. 화면마다 적은 곡을 순서대로 돌려 틉니다 (한 곡이면 반복).
      title: 표지, map: 문제 고르는 파이프 화면. 문제·정답 화면에서는 꺼집니다. */
