@@ -111,6 +111,8 @@ F5, Ctrl+R, 뒤로 가기는 막혀 있습니다. 브라우저 버튼으로 새�
   곡 파일은 assets/bgm 폴더, 표지·지도 곡 목록과 음량은 settings.js 의 bgmTracks / bgmVolume.
   브라우저 정책상 첫 클릭(또는 키 입력) 뒤부터 소리가 납니다. 끄려면 settings.js 의 bgm: false.
 효과음: 받아 둔 마리오 효과음을 원작에서 그 소리가 나는 동작에 붙였습니다 (assets/sfx 폴더, 앞뒤 빈 소리를 자르고 음량을 맞춤).
+  난이도 상(밤) 입장 때 보스 얼굴 전환에서는 보스 웃음이 납니다. assets/sfx/laugh.mp3 로 넣으면 그 소리가 나고,
+  파일이 없으면 Bowser Fire 소리로 대신합니다.
   점프 = Jump, 블록 치기·새로고침 막힘 = Bump, 동전 = Coin, 펭귄 밟기 = Stomp, 파이프 = Pipe,
   게임 시작 = 1UP, 정답 공개 = Item Block → PowerUp, 정답 화면 = Level Clear, 깃발 = FlagPole,
   모든 문제 끝 = Castle Clear + Fireworks, 시간 종료 = Lose a Life.

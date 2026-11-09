@@ -672,21 +672,24 @@
     return [0, 1, 2].map((j) => ca[j] + (cb[j] - ca[j]) * k);
   }
   /* 그림 한 장의 색을 시간대에 맞게 바꾼 새 그림 */
-  function regrade(img, tod, amt) {
+  /* 물속·지하는 원래 어두워서 색만 섞으면 구분이 안 된다: 노을은 밝게 들어 올려 따뜻하게, 밤은 확 어둡게 */
+  const CLOSED = { dusk: { amt: .74, lift: .24, mul: 1.06 }, night: { amt: .7, lift: 0, mul: .5 } };
+  function regrade(img, tod, amt, o = {}) {
     const T = TOD[tod];
     const c = document.createElement('canvas');
     c.width = img.width; c.height = img.height;
     const x = c.getContext('2d');
     x.drawImage(img, 0, 0);
     const d = x.getImageData(0, 0, c.width, c.height), px = d.data, k = amt == null ? T.amt : amt, memo = {};
+    const lift = o.lift || 0, mul = o.mul || (tod === 'night' ? .82 : 1);
     for (let i = 0; i < px.length; i += 4) {
       if (!px[i + 3]) continue;
       const key = (px[i] << 16) | (px[i + 1] << 8) | px[i + 2];
       let out = memo[key];
       if (!out) {
-        const r = px[i], g = px[i + 1], b = px[i + 2], L = (r * .3 + g * .55 + b * .15) / 255;
+        const r = px[i], g = px[i + 1], b = px[i + 2], L = Math.min(1, (r * .3 + g * .55 + b * .15) / 255 + lift);
         const m = rampAt(T.ramp, L);
-        out = memo[key] = [r + (m[0] - r) * k, g + (m[1] - g) * k, b + (m[2] - b) * k].map((v) => (tod === 'night' ? v * .82 : v) | 0);
+        out = memo[key] = [r + (m[0] - r) * k, g + (m[1] - g) * k, b + (m[2] - b) * k].map((v) => Math.min(255, v * mul) | 0);
       }
       px[i] = out[0]; px[i + 1] = out[1]; px[i + 2] = out[2];
     }
@@ -722,13 +725,13 @@
   }
   /* 이미 만든 월드 그림 묶음 L 을 시간대 tod 로 */
   function timeOf(name, L, tod) {
-    const out = { ...L };
-    Object.keys(L).forEach((k) => { if (L[k] instanceof HTMLCanvasElement) out[k] = regrade(L[k], tod); });
-    if (L.strips) out.strips = L.strips.map((s) => ({ ...s, img: regrade(s.img, tod) }));
+    const out = { ...L }, o = OPEN_SKY[name] ? {} : CLOSED[tod], amt = OPEN_SKY[name] ? undefined : o.amt;
+    Object.keys(L).forEach((k) => { if (L[k] instanceof HTMLCanvasElement) out[k] = regrade(L[k], tod, amt, o); });
+    if (L.strips) out.strips = L.strips.map((s) => ({ ...s, img: regrade(s.img, tod, amt, o) }));
     if (OPEN_SKY[name]) {
       out.sky = todSky(tod);
       if (tod === 'night') out.stars = Array.from({ length: 50 }, (_, i) => [(i * 73) % VW, (i * 37) % 100, i % 5]);
-    } else if (L.sky) out.sky = regrade(L.sky, tod, tod === 'night' ? .8 : .45);
+    } else if (L.sky) out.sky = regrade(L.sky, tod, tod === 'night' ? .8 : .7, o);
     if (L.band) out.band = '#' + regradeHex(L.band, tod);
     return out;
   }

@@ -365,6 +365,10 @@ kbd { display: inline-block; min-width: 1.5em; padding: 0 .3em; margin: 0 .15em;
 .pipe-front.small { width: 80px; height: 64px; }
 .tower-bg { position: absolute; background-size: 100% 100%; image-rendering: pixelated; box-shadow: 0 0 0 6px #000, 12px 12px 0 6px rgba(0,0,0,.45); }
 .tower-bg .tod { position: absolute; inset: 0; background-size: 100% 100%; image-rendering: pixelated; }
+.tower-bg.closed .tod::after { content: ''; position: absolute; inset: 0; }
+.tower-bg.closed .tod-day::after { background: linear-gradient(rgba(120, 200, 255, .42), rgba(90, 170, 255, .22)); mix-blend-mode: screen; }
+.tower-bg.closed .tod-dusk::after { background: linear-gradient(rgba(255, 110, 120, .5), rgba(255, 170, 90, .42)); mix-blend-mode: screen; }
+.tower-bg.closed .tod-night::after { background: rgba(8, 10, 40, .5); mix-blend-mode: multiply; }
 .tower-bg::after { content: ''; position: absolute; inset: 0; background: linear-gradient(rgba(0,0,0,.18), transparent 30%); }
 .pipe-room .platform { height: 64px; background-size: 64px 64px; filter: drop-shadow(8px 8px 0 #000); }
 .pipe-room .platform b { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); padding: 2px 12px; font-size: 22px; line-height: 30px; color: #fff; white-space: nowrap; background: var(--ink); box-shadow: 0 0 0 3px #fff; }

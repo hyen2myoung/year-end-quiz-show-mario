@@ -24,14 +24,26 @@
    open        대화창 열기                            두 음 (코드)
    blip        대화창 글자 찍힐 때                    아주 짧은 삑 (코드)
    deny        새로고침 막힘                          Bump
-   iris        화면 닫히고 열릴 때                    없음 */
+   iris        화면 닫히고 열릴 때                    없음
+   boss        난이도 상 보스 얼굴 전환               보스 웃음 (assets/sfx/laugh.mp3). 파일이 없으면 Bowser Fire */
 (function () {
   const SET = window.QUIZ_SETTINGS || {};
   const DIR = 'assets/sfx/';
   const vol = () => Math.max(0, Math.min(1, SET.sfxVolume == null ? 0.8 : SET.sfxVolume));
 
   /* ---------- 파일 효과음: 미리 읽어 두고, 겹쳐 나야 하면 복제해서 튼다 ---------- */
-  const FILES = ['jump', 'stomp', 'pipe', 'bump', 'coin', 'item', 'powerup', '1up', 'timeup', 'clear', 'flag', 'castle', 'fireworks'];
+  const FILES = ['jump', 'stomp', 'pipe', 'bump', 'coin', 'item', 'powerup', '1up', 'timeup', 'clear', 'flag', 'castle', 'fireworks', 'bossfire'];
+  /* 보스 웃음 (미리 읽어 두면 파일이 있는지 먼저 알 수 있다): assets/sfx/laugh.mp3 를 넣으면 그 소리, 없으면 Bowser Fire 로 대신 */
+  let laugh = null, noLaugh = false;
+  function bossLaugh() {
+    bossLaugh.pre();
+    if (noLaugh || !laugh) return file('bossfire');
+    laugh.volume = vol();
+    try { laugh.currentTime = 0; } catch (e) {}
+    const p = laugh.play();
+    if (p && p.catch) p.catch(() => setTimeout(() => { if (noLaugh) file('bossfire'); }, 80));
+  }
+  bossLaugh.pre = () => { if (!laugh && !noLaugh) { laugh = new Audio(DIR + 'laugh.mp3'); laugh.preload = 'auto'; laugh.addEventListener('error', () => { noLaugh = true; laugh = null; }); } };
   const pool = {};
   function loadAll() {
     FILES.forEach((n) => {
@@ -125,6 +137,7 @@
         case 'reveal': file('item'); setTimeout(() => file('powerup'), 520); break;
         case 'clear': if (window.Bgm) window.Bgm.quiet(5700); file('clear'); break;
         case 'flag': file('flag'); break;
+        case 'boss': bossLaugh(); break;
         case 'allClear':
           if (window.Bgm) window.Bgm.quiet(7000);
           file('castle'); setTimeout(() => file('fireworks', 0.8), 400); break;
@@ -134,7 +147,7 @@
       }
     },
     /* 첫 클릭/키 입력 때 불린다: 삑 소리 장치를 깨우고 파일을 미리 읽는다 */
-    unlock() { if (!this.enabled) return; ac(); loadAll(); }
+    unlock() { if (!this.enabled) return; ac(); loadAll(); bossLaugh.pre(); }
   };
   /* 배경음: 화면마다 곡 목록(settings.js 의 bgmTracks)을 차례로 돌려 튼다.
      scene('title') 표지, scene('map') 파이프 판, scene(null) 끄기 (문제·정답 화면).

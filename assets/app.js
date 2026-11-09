@@ -197,6 +197,7 @@
   function bossClose(at) {
     wipeEl.classList.add('on');
     const S0 = bossFar(at), ease = (t) => 1 - (1 - t) ** 3;
+    Sound.play('boss'); /* 보스 얼굴이 나오면서 웃음 */
     return tween(650, (p) => bossPaint(at.x, at.y, S0 + (BOSS_HOLD - S0) * ease(p)))
       .then(() => new Promise((r) => setTimeout(r, 420)))
       .then(() => tween(220, (p) => bossPaint(at.x, at.y, BOSS_HOLD * (1 - p * p))))
@@ -740,7 +741,8 @@
       /* 층 경계: 각 층 발판 40px 위. 경계에서 위아래 FADE px 동안 다음 시간대로 서서히 물든다 */
       const cut = tiers.map((t, i) => (i === 0 ? FLOOR : Math.floor((tiers[i - 1].top - 40) / U) * U));
       const FADE = 70;
-      const b = el('div', 'tower-bg world');
+      /* 물속·지하는 원래 어두워서 판에서는 시간대 빛을 한 겹 더 씌운다 (CSS .tower-bg.closed) */
+      const b = el('div', `tower-bg world${['water', 'cave'].includes(stageOf(c.name)) ? ' closed' : ''}`);
       b.style.cssText = `left:${x0}px;top:${top}px;width:${cw * U}px;height:${H * U}px`;
       /* 시간대마다 판 전체 그림을 한 장씩 겹친다. 위 시간대일수록 위쪽만 보이게 그러데이션 가림막 */
       tiers.forEach((t, i) => {
