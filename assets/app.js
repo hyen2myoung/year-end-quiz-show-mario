@@ -158,6 +158,59 @@
       return tween(620, (p) => checkerPaint(p, true));
     }).then(() => { wg.clearRect(0, 0, 320, 180); wipeEl.classList.remove('on'); });
   }
+  /* 보스 얼굴 모양 화면 전환 (난이도 '상' = 밤 스테이지 입장).
+     뿔·가시 갈기가 달린 성난 괴물 얼굴 모양 구멍으로 화면이 오므라들고, 눈·콧구멍·입은 검게 뚫린다.
+     u, v 는 얼굴 크기로 나눈 좌표 (가운데 0, 가로 반폭 ≈ 1) */
+  const triIn = (x, y, ax, ay, bx, by, cx, cy) => {
+    const d = (bx - ax) * (cy - ay) - (cx - ax) * (by - ay);
+    const a = ((bx - x) * (cy - y) - (cx - x) * (by - y)) / d, b = ((cx - x) * (ay - y) - (ax - x) * (cy - y)) / d;
+    return a >= 0 && b >= 0 && a + b <= 1;
+  };
+  function bossInside(u, v) {
+    const x = Math.abs(u); /* 좌우 대칭 */
+    const shape = (x / .62) ** 2 + ((v - .08) / .6) ** 2 <= 1 /* 머리 */
+      || (x / .56) ** 2 + ((v - .42) / .32) ** 2 <= 1 /* 턱 */
+      || triIn(x, v, .2, -.36, .52, -.22, .68, -1) /* 뿔 */
+      || triIn(x, v, .52, -.24, .62, .06, .92, -.2) /* 갈기 가시 */
+      || triIn(x, v, .6, .1, .6, .4, .94, .3)
+      || triIn(x, v, .5, .44, .38, .68, .8, .72)
+      || triIn(x, v, 0, -.48, .2, -.48, 0, -.86) /* 정수리 털 */
+      || triIn(x, v, .06, -.46, .34, -.36, .3, -.76);
+    if (!shape) return false;
+    const eye = ((x - .24) / .12) ** 2 + ((v + .04) / .16) ** 2 <= 1 && v > -.24 + (.36 - x) * .7;
+    const nose = ((x - .09) ** 2 + (v - .27) ** 2) <= .04 ** 2;
+    const mouth = v > .44 && (x / .36) ** 2 + ((v - .44) / .16) ** 2 <= 1;
+    const fang = triIn(x, v, .1, .44, .24, .44, .17, .58);
+    return !(eye || nose || (mouth && !fang));
+  }
+  function bossPaint(cx, cy, size) {
+    const img = wg.createImageData(320, 180), d = img.data;
+    const x0 = cx / U, y0 = cy / U, k = U / Math.max(1, size);
+    for (let y = 0; y < 180; y++) for (let x = 0; x < 320; x++) {
+      if (size <= 0 || !bossInside((x + .5 - x0) * k, (y + .5 - y0) * k)) d[(y * 320 + x) * 4 + 3] = 255;
+    }
+    wg.putImageData(img, 0, 0);
+  }
+  const BOSS_HOLD = 240; /* 잠깐 멈추는 얼굴 크기(px, 반폭) */
+  const bossFar = (p) => Math.max(...[[0, 0], [1920, 0], [0, 1080], [1920, 1080]].map(([a, b]) => Math.hypot(a - p.x, b - p.y))) / .5;
+  /* 닫기: 화면 가득 → 얼굴 크기에서 잠깐 멈춤 → 깜깜 */
+  function bossClose(at) {
+    wipeEl.classList.add('on');
+    const S0 = bossFar(at), ease = (t) => 1 - (1 - t) ** 3;
+    return tween(650, (p) => bossPaint(at.x, at.y, S0 + (BOSS_HOLD - S0) * ease(p)))
+      .then(() => new Promise((r) => setTimeout(r, 420)))
+      .then(() => tween(220, (p) => bossPaint(at.x, at.y, BOSS_HOLD * (1 - p * p))))
+      .then(() => bossPaint(0, 0, 0));
+  }
+  /* 열기: 깜깜 → 얼굴이 쑥 → 잠깐 멈춤 → 화면 가득 */
+  function bossOpen(at) {
+    const S1 = bossFar(at), ease = (t) => t * t * t;
+    return tween(220, (p) => bossPaint(at.x, at.y, BOSS_HOLD * (1 - (1 - p) ** 2)))
+      .then(() => new Promise((r) => setTimeout(r, 380)))
+      .then(() => tween(600, (p) => bossPaint(at.x, at.y, BOSS_HOLD + (S1 - BOSS_HOLD) * ease(p))))
+      .then(() => { wg.clearRect(0, 0, 320, 180); wipeEl.classList.remove('on'); });
+  }
+
   /* mid: 완전히 닫혔을 때 할 일. hold: 검은 화면 유지 시간. 열리는 자리 to */
   function wipe(from, mid, { hold = 120, to = { x: 960, y: 560 } } = {}) {
     const far = (p) => Math.max(...[[0, 0], [1920, 0], [0, 1080], [1920, 1080]].map(([a, b]) => Math.hypot(a - p.x, b - p.y))) + 12;
@@ -684,19 +737,24 @@
       const cw = Math.round((tiers[0].w + 56) / U), x0 = towerX(ci) - cw * U / 2;
       const top = Math.floor((tiers[tiers.length - 1].top - 234) / U) * U;
       const H = Math.round((FLOOR - top) / U);
-      /* 층 경계: 각 층 발판 40px 위에서 끊는다 */
-      const cut = tiers.map((t, i) => (i === 0 ? FLOOR : Math.floor((tiers[i - 1].top - 40) / U) * U)).concat(top);
-      /* 위층부터 붙인다: 아래 판이 위 판의 그림자를 덮어 이음새가 깔끔하다 */
-      tiers.map((t, i) => i).reverse().forEach((i) => {
-        const y0 = cut[i + 1], y1 = cut[i], h = Math.round((y1 - y0) / U);
-        if (h <= 0) return;
-        /* 판 전체를 한 장면으로 보고 그 층 높이만큼 잘라 낸다 (풍경이 위아래로 이어진다) */
-        const sy = Math.max(0, World.GY - H + Math.round((y0 - top) / U));
-        const b = el('div', `tower-bg world tod-${todOfLevel(i)}${i === tiers.length - 1 ? ' top' : ''}`);
-        const url = World.snapshot(stageOf(c.name), { tint: catHex(c), tod: todOfLevel(i), cam: 40 + ci * 137, x: 0, y: Math.min(sy, World.GY - h), w: cw, h });
-        b.style.cssText = `left:${x0}px;top:${y0}px;width:${cw * U}px;height:${h * U}px;background-image:url(${url})`;
-        scr.appendChild(b);
+      /* 층 경계: 각 층 발판 40px 위. 경계에서 위아래 FADE px 동안 다음 시간대로 서서히 물든다 */
+      const cut = tiers.map((t, i) => (i === 0 ? FLOOR : Math.floor((tiers[i - 1].top - 40) / U) * U));
+      const FADE = 70;
+      const b = el('div', 'tower-bg world');
+      b.style.cssText = `left:${x0}px;top:${top}px;width:${cw * U}px;height:${H * U}px`;
+      /* 시간대마다 판 전체 그림을 한 장씩 겹친다. 위 시간대일수록 위쪽만 보이게 그러데이션 가림막 */
+      tiers.forEach((t, i) => {
+        const url = World.snapshot(stageOf(c.name), { tint: catHex(c), tod: todOfLevel(i), cam: 40 + ci * 137, x: 0, y: Math.max(0, World.GY - H), w: cw, h: H });
+        const layer = el('div', `tod tod-${todOfLevel(i)}`);
+        layer.style.backgroundImage = `url(${url})`;
+        if (i > 0) {
+          const d = FLOOR - cut[i]; /* 판 아래에서 경계까지 */
+          const m = `linear-gradient(to top, transparent ${d - FADE}px, #000 ${d + FADE}px)`;
+          layer.style.maskImage = m; layer.style.webkitMaskImage = m;
+        }
+        b.appendChild(layer);
       });
+      scr.appendChild(b);
     });
     CATS.forEach((c, ci) => {
       const tiers = tierLayout(ci);
@@ -972,11 +1030,14 @@
     save();
     Bgm.scene(null);
     Sound.play('enter');
-    /* 옛날 게임처럼 바로 깜깜해지고 입장 카드 */
+    /* 밤(상) 스테이지는 보스 얼굴 모양으로 닫혔다가 열린다. 나머지는 옛날 게임처럼 바로 깜깜해진다 */
+    const boss = todOf(id) === 'night';
+    if (boss) await bossClose({ x: p.x, y: p.top - 60 });
     showCard(id);
-    await new Promise((r) => setTimeout(r, 2700));
+    await new Promise((r) => setTimeout(r, boss ? 2400 : 2700));
     showQuestion(false);
     hideCard();
+    if (boss) await bossOpen({ x: 960, y: 520 });
     busy = false;
   }
 
