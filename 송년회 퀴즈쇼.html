@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SW 센터 송년회 퀴즈쇼</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div id="stage">
+  <canvas id="world"></canvas>
+  <div id="dim"></div>
+  <div id="screens"></div>
+  <div id="actors"></div>
+  <canvas id="fx"></canvas>
+  <div id="hud">
+    <div class="bar-panel">
+      <div class="bar-row">
+        <span class="lbl">WORLD</span><b id="hudWorld" class="world">MAP</b>
+        <i class="coin-ico"></i><b id="hudClear">×00</b><small id="hudTotal">/48</small>
+      </div>
+      <div class="bar-row">
+        <span class="lbl">SCORE</span><b id="hudScore">0000000</b>
+        <span class="lbl time-lbl">TIME</span><b id="hudTime">---</b>
+      </div>
+    </div>
+    <div class="bar-msg" id="hudMsg"></div>
+    <div class="bar-slot"><img id="slotG" alt=""></div>
+    <div class="bar-slot"><img id="slotN" alt=""></div>
+    <div class="hud-btns">
+      <button id="hudFull" title="전체화면 (F)">⛶</button>
+      <button id="hudPanel" title="운영 패널 (O)">⚙</button>
+    </div>
+  </div>
+  <div id="vignette"></div>
+  <canvas id="wipe"></canvas>
+  <div id="card"></div>
+  <div id="toast"></div>
+</div>
+
+<!-- 내용 파일: 문제, 행사 설정 -->
+<script src="data/questions.js"></script>
+<script src="data/settings.js"></script>
+<!-- 프로그램 파일 -->
+<script src="assets/sound.js"></script>
+<script src="assets/pixel.js"></script>
+<script src="assets/world.js"></script>
+<script src="assets/hero.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>
