@@ -159,56 +159,51 @@
     }).then(() => { wg.clearRect(0, 0, 320, 180); wipeEl.classList.remove('on'); });
   }
   /* 보스 얼굴 모양 화면 전환 (난이도 '상' = 밤 스테이지 입장).
-     뿔·가시 갈기가 달린 성난 괴물 얼굴 모양 구멍으로 화면이 오므라들고, 눈·콧구멍·입은 검게 뚫린다.
-     u, v 는 얼굴 크기로 나눈 좌표 (가운데 0, 가로 반폭 ≈ 1) */
-  const triIn = (x, y, ax, ay, bx, by, cx, cy) => {
-    const d = (bx - ax) * (cy - ay) - (cx - ax) * (by - ay);
-    const a = ((bx - x) * (cy - y) - (cx - x) * (by - y)) / d, b = ((cx - x) * (ay - y) - (ax - x) * (cy - y)) / d;
-    return a >= 0 && b >= 0 && a + b <= 1;
-  };
-  function bossInside(u, v) {
-    const x = Math.abs(u); /* 좌우 대칭 */
-    const shape = (x / .62) ** 2 + ((v - .08) / .6) ** 2 <= 1 /* 머리 */
-      || (x / .56) ** 2 + ((v - .42) / .32) ** 2 <= 1 /* 턱 */
-      || triIn(x, v, .2, -.36, .52, -.22, .68, -1) /* 뿔 */
-      || triIn(x, v, .52, -.24, .62, .06, .92, -.2) /* 갈기 가시 */
-      || triIn(x, v, .6, .1, .6, .4, .94, .3)
-      || triIn(x, v, .5, .44, .38, .68, .8, .72)
-      || triIn(x, v, 0, -.48, .2, -.48, 0, -.86) /* 정수리 털 */
-      || triIn(x, v, .06, -.46, .34, -.36, .3, -.76);
-    if (!shape) return false;
-    const eye = ((x - .24) / .12) ** 2 + ((v + .04) / .16) ** 2 <= 1 && v > -.24 + (.36 - x) * .7;
-    const nose = ((x - .09) ** 2 + (v - .27) ** 2) <= .04 ** 2;
-    const mouth = v > .44 && (x / .36) ** 2 + ((v - .44) / .16) ** 2 <= 1;
-    const fang = triIn(x, v, .1, .44, .24, .44, .17, .58);
-    return !(eye || nose || (mouth && !fang));
-  }
-  function bossPaint(cx, cy, size) {
-    const img = wg.createImageData(320, 180), d = img.data;
-    const x0 = cx / U, y0 = cy / U, k = U / Math.max(1, size);
-    for (let y = 0; y < 180; y++) for (let x = 0; x < 320; x++) {
-      if (size <= 0 || !bossInside((x + .5 - x0) * k, (y + .5 - y0) * k)) d[(y * 320 + x) * 4 + 3] = 255;
+     모양은 assets/boss-face.js (받아 둔 쿠파 얼굴 문양). 얼굴 모양 구멍으로 화면이 보이고 눈·입·바깥은 검다.
+     얼굴이 화면보다 훨씬 크게 시작해 오므라들고, 얼굴 크기에서 잠깐 멈췄다가 사라진다. 열 때는 거꾸로. */
+  const FACE = (() => {
+    const F = window.BOSS_FACE;
+    if (!F) return null;
+    const m = new Uint8Array(F.w * F.h);
+    F.rle.split('|').forEach((row, y) => {
+      let x = 0, on = 0;
+      row.split('.').forEach((n) => { n = +n; if (on) m.fill(1, y * F.w + x, y * F.w + x + n); x += n; on ^= 1; });
+    });
+    /* 기준점: 눈 아래·입 위 꽉 찬 띠 (크게 키웠을 때 화면 전체가 이 띠 안에 들어온다) */
+    return { w: F.w, h: F.h, m, ax: F.w / 2, ay: F.h * .42 };
+  })();
+  const FACE_FAR = 42, FACE_HOLD = 2.2; /* 얼굴 그림 1칸 = 화면 몇 px (처음 / 멈출 때) */
+  function bossPaint(cx, cy, sc) {
+    if (!FACE) return irisPaint(cx, cy, sc * 160);
+    const img = wg.createImageData(320, 180), d = img.data, { w, h, m, ax, ay } = FACE;
+    for (let y = 0; y < 180; y++) {
+      const iy = Math.floor(ay + ((y + .5) * U - cy) / sc);
+      for (let x = 0; x < 320; x++) {
+        const ix = Math.floor(ax + ((x + .5) * U - cx) / sc);
+        if (sc <= 0 || iy < 0 || iy >= h || ix < 0 || ix >= w || !m[iy * w + ix]) d[(y * 320 + x) * 4 + 3] = 255;
+      }
     }
     wg.putImageData(img, 0, 0);
   }
-  const BOSS_HOLD = 240; /* 잠깐 멈추는 얼굴 크기(px, 반폭) */
-  const bossFar = (p) => Math.max(...[[0, 0], [1920, 0], [0, 1080], [1920, 1080]].map(([a, b]) => Math.hypot(a - p.x, b - p.y))) / .5;
+  const zoom = (a, b, t) => a * Math.pow(b / a, t); /* 크기는 곱으로 줄여야 일정한 속도로 보인다 */
   /* 닫기: 화면 가득 → 얼굴 크기에서 잠깐 멈춤 → 깜깜 */
+  /* 얼굴이 멈춰 있을 때 화면 밖으로 잘리지 않게 가운데 쪽으로 당긴다 */
+  const faceAt = (p) => ({ x: Math.max(340, Math.min(1580, p.x)), y: Math.max(330, Math.min(640, p.y)) });
   function bossClose(at) {
+    at = faceAt(at);
     wipeEl.classList.add('on');
-    const S0 = bossFar(at), ease = (t) => 1 - (1 - t) ** 3;
     Sound.play('boss'); /* 보스 얼굴이 나오면서 웃음 */
-    return tween(650, (p) => bossPaint(at.x, at.y, S0 + (BOSS_HOLD - S0) * ease(p)))
-      .then(() => new Promise((r) => setTimeout(r, 420)))
-      .then(() => tween(220, (p) => bossPaint(at.x, at.y, BOSS_HOLD * (1 - p * p))))
+    const ease = (t) => 1 - (1 - t) ** 2;
+    return tween(700, (p) => bossPaint(at.x, at.y, zoom(FACE_FAR, FACE_HOLD, ease(p))))
+      .then(() => new Promise((r) => setTimeout(r, 650)))
+      .then(() => tween(240, (p) => bossPaint(at.x, at.y, FACE_HOLD * (1 - p * p))))
       .then(() => bossPaint(0, 0, 0));
   }
   /* 열기: 깜깜 → 얼굴이 쑥 → 잠깐 멈춤 → 화면 가득 */
   function bossOpen(at) {
-    const S1 = bossFar(at), ease = (t) => t * t * t;
-    return tween(220, (p) => bossPaint(at.x, at.y, BOSS_HOLD * (1 - (1 - p) ** 2)))
-      .then(() => new Promise((r) => setTimeout(r, 380)))
-      .then(() => tween(600, (p) => bossPaint(at.x, at.y, BOSS_HOLD + (S1 - BOSS_HOLD) * ease(p))))
+    return tween(240, (p) => bossPaint(at.x, at.y, FACE_HOLD * (1 - (1 - p) ** 2)))
+      .then(() => new Promise((r) => setTimeout(r, 450)))
+      .then(() => tween(650, (p) => bossPaint(at.x, at.y, zoom(FACE_HOLD, FACE_FAR, p * p))))
       .then(() => { wg.clearRect(0, 0, 320, 180); wipeEl.classList.remove('on'); });
   }
 
