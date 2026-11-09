@@ -33,7 +33,8 @@
   /* ---------- 문제 데이터 ---------- */
   const SLOTS = Math.max(1, Math.min(4, SET.slotsPerCell || 4));
   const CATS = SET.categories, LEVELS = SET.levels;
-  const STAGES = ['day', 'night', 'sunset', 'ice'];
+  const STAGES = ['day', 'water', 'sky', 'cave'];
+  const STAGE_NAME = { day: '평원', water: '물속', sky: '하늘', cave: '지하', castle: '성', night: '밤 마을', sunset: '노을 언덕', ice: '얼음 동굴' };
   const idOf = (cat, level, n) => `${cat}_${level}_${n}`;
   const parseId = (id) => { const [cat, level, no] = id.split('_'); return { cat, level, no: Number(no) }; };
   const hasContent = (q) => !!(q && (q.q || q.q_img || q.q_audio));
@@ -44,6 +45,13 @@
   const catIndex = (name) => Math.max(0, CATS.indexOf(catOf(name)));
   const levelIndex = (name) => Math.max(0, LEVELS.findIndex((l) => l.name === name));
   const stageOf = (name) => { const c = catOf(name); return c.stage || STAGES[catIndex(name) % STAGES.length]; };
+  /* 문제 하나의 스테이지: 분야 = 월드 테마, castle 난이도(상) = 그 월드의 성 */
+  const isCastle = (id) => !!(LEVELS[levelIndex(parseId(id).level)] || {}).castle;
+  const stageFor = (id) => (isCastle(id) ? 'castle' : stageOf(parseId(id).cat));
+  const sideStage = (id) => World.side(stageFor(id), { tint: catHex(catOf(parseId(id).cat)) });
+  /* 문제 화면 배경음: 분야의 bgm 에서 난이도 순서대로 */
+  const trackOf = (id) => { const p = parseId(id), list = catOf(p.cat).bgm || []; return list[levelIndex(p.level)] || ''; };
+  const stageBgm = (id, restart) => { const t = trackOf(id); if (t) Bgm.scene(`stage:${t}`, [t], { restart }); else Bgm.scene(null); };
   const starsOf = (level) => '★'.repeat(levelIndex(level) + 1);
   const label = (id) => { const p = parseId(id); return `${p.cat} ${p.level}-${p.no}`; };
 
@@ -162,7 +170,8 @@
     const p = parseId(id), c = catOf(p.cat);
     const left = readyIds.filter((x) => !state.used[x] && x !== id).length;
     cardEl.innerHTML = `
-      <div class="card-world"><img src="${SP.icon(c.icon || 'book', '#ffffff')}" alt=""><span>WORLD ${catIndex(p.cat) + 1}</span></div>
+      <div class="card-world"><img src="${SP.icon(c.icon || 'book', '#ffffff')}" alt=""><span>WORLD ${catIndex(p.cat) + 1}-${levelIndex(p.level) + 1}</span></div>
+      <div class="card-stage${isCastle(id) ? ' castle' : ''}"><img src="${SP.icon(isCastle(id) ? 'castle' : 'flag', isCastle(id) ? '#c4c0d0' : '#ffd23f')}" alt="">${esc(isCastle(id) ? `${STAGE_NAME[stageOf(p.cat)] || ''} 월드의 성` : `${STAGE_NAME[stageOf(p.cat)] || ''} 스테이지`)}</div>
       <div class="card-name" style="--c:${c.color || '#2f7ae8'}">${esc(p.cat)}</div>
       <div class="card-level">${esc(p.level)} - ${p.no} <em>${starsOf(p.level)}</em></div>
       <div class="card-lives"><img src="${portrait('gureum')}" alt=""><img src="${portrait('noeul')}" alt=""><b>× ${pad2(left)}</b><small>남은 문제</small></div>`;
@@ -659,6 +668,24 @@
     screens.innerHTML = '';
     const scr = el('div', 'screen board-screen pipe-room');
     pipeEls = {};
+    /* 탑마다 뒤에 그 월드의 풍경 판. castle 난이도 층은 성벽 풍경 */
+    CATS.forEach((c, ci) => {
+      const tiers = tierLayout(ci);
+      const cw = Math.round((tiers[0].w + 56) / U), x0 = towerX(ci) - cw * U / 2;
+      const top = Math.floor((tiers[tiers.length - 1].top - 234) / U) * U;
+      const cr = LEVELS.findIndex((l) => l.castle);
+      const split = cr > 0 ? Math.floor((tiers[cr - 1].top - 40) / U) * U : cr === 0 ? FLOOR : top;
+      const panel = (cls, theme, y0, y1, sy) => {
+        const h = Math.round((y1 - y0) / U);
+        if (h <= 0) return;
+        const b = el('div', `tower-bg ${cls}`);
+        const url = World.snapshot(theme, { tint: catHex(c), cam: 40 + ci * 137, x: 0, y: sy == null ? World.GY - h : sy, w: cw, h });
+        b.style.cssText = `left:${x0}px;top:${y0}px;width:${cw * U}px;height:${h * U}px;background-image:url(${url})`;
+        scr.appendChild(b);
+      };
+      if (cr >= 0) panel('castle', 'castle', top, split, 0);
+      panel('world', stageOf(c.name), split, FLOOR);
+    });
     CATS.forEach((c, ci) => {
       const tiers = tierLayout(ci);
       const ids = readyIds.filter((id) => parseId(id).cat === c.name);
@@ -670,9 +697,9 @@
       scr.appendChild(sign);
       tiers.forEach((t) => {
         if (t.r > 0) {
-          /* 층 발판 벽돌 색 = 난이도 색 (settings.js levels 의 color) */
-          const pf = el('div', 'platform', `<b>${esc(t.lv.name)} <em>${starsOf(t.lv.name)}</em></b>`);
-          pf.style.cssText = `left:${t.left - 12}px;top:${t.surface}px;width:${t.w + 24}px;background-image:url(${SP.brick(t.lv.color)})`;
+          /* 층 발판 벽돌 색 = 난이도 색 (settings.js levels 의 color). 성 층은 돌 벽돌 */
+          const pf = el('div', `platform${t.lv.castle ? ' castle' : ''}`, `<b>${t.lv.castle ? `<img class="ico" src="${SP.icon('castle', '#c4c0d0')}" alt="">` : ''}${esc(t.lv.name)} <em>${starsOf(t.lv.name)}</em></b>`);
+          pf.style.cssText = `left:${t.left - 12}px;top:${t.surface}px;width:${t.w + 24}px;background-image:url(${SP.brick(t.lv.castle ? 'castle' : t.lv.color)})`;
           scr.appendChild(pf);
         } else {
           /* 맨 아래층도 같은 색 벽돌 판 (공중에 떠 있다) */
@@ -979,12 +1006,12 @@
     const q = QS[id];
     const p = parseId(id);
     state.screen = 'question';
-    Bgm.scene(null);
+    stageBgm(id, true);
     if (!instant || !state.qStartedAt) { state.qStartedAt = Date.now(); state.qEndedAt = 0; } /* 문제 화면이 뜬 순간부터 */
     save();
     stopAudio();
     urgentNow = false;
-    World.side(stageOf(p.cat));
+    sideStage(id);
     if (!instant) World.pan(160, 1400);
     hud(label(id));
     barMsg('');
@@ -1370,11 +1397,11 @@
     const q = QS[id];
     const p = parseId(id);
     state.screen = 'answer';
-    Bgm.scene(null);
+    stageBgm(id, false);
     save();
     stopAudio();
     urgentNow = false;
-    World.side(stageOf(p.cat));
+    sideStage(id);
     if (!instant) World.pan(120, 1600);
     hud(label(id)); tickTime();
     barMsg(`COURSE CLEAR<br>${key('Enter')} 지도로`);

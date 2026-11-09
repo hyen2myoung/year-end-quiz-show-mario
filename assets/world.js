@@ -1,9 +1,11 @@
-/* 게임 화면 배경: 옆으로 흘러가는 겨울 스테이지 4종과 위에서 내려다본 월드 지도.
+/* 게임 화면 배경: 옆으로 흘러가는 스테이지들과 위에서 내려다본 월드 지도.
    가로 320 × 세로 180 칸에 그린 뒤 6배로 키운다. 겹겹이 다른 속도로 흘러 멀고 가까운 느낌을 낸다.
-   테마  day   한낮의 눈 덮인 언덕 (상식)
-         night 별이 뜬 밤 마을 (청각)
-         sunset 노을 지는 언덕 (시각)
-         ice   얼음 동굴 (두뇌)  */
+   테마  day    눈 덮인 평원 (지상)
+         water  물속 — 햇살, 물고기 떼, 산호·해초, 물방울
+         sky    하늘 — 구름 바다, 떠 있는 눈섬, 큰 버섯 발판, 구름 땅
+         cave   지하 — 파란 벽돌 기둥, 고드름 천장, 얼음 결정
+         castle 성 — 돌벽·아치 창문, 용암, 횃불 기둥, 불티 (tint 로 깃발·창문 색을 바꾼다)
+         night · sunset · ice  예전 겨울 테마 (그대로 쓸 수 있다) */
 (function () {
   const { Grid, ellipse, rect, rrect, tri, any, INK } = window.Pixel;
   const VW = 320, VH = 180, GY = 138; /* 땅 윗면 = 138칸 = 828px. 154칸(924px) 아래는 검은 상태 막대 */
@@ -109,6 +111,12 @@
     const inHill = wrap(W, (x, y) => hills.some(([cx, h, rx]) => ((x - cx) / rx) ** 2 + ((y - 70) / h) ** 2 <= 1));
     const h = th.hill;
     g.part(inHill, { fill: h.fill, line: h.line });
+    if (!h.snow) {
+      for (let y = 0; y < 70; y++) for (let x = 0; x < W; x++) {
+        if (y % 4 === 1 && (x + (y % 8 === 1 ? 0 : 2)) % 4 === 0 && g.get(x, y) === h.fill) g.set(x, y, h.dark);
+      }
+      return g.toCanvas();
+    }
     /* 언덕 무늬: 바둑판처럼 엇갈린 점 */
     for (let y = 0; y < 70; y++) for (let x = 0; x < W; x++) {
       if (y % 4 === 1 && (x + (y % 8 === 1 ? 0 : 2)) % 4 === 0 && g.get(x, y) === h.fill) g.set(x, y, h.dark);
@@ -332,11 +340,323 @@
     return g.toCanvas();
   }
 
+  /* =====================================================================
+     마리오식 스테이지 4종: 물속(water) · 하늘(sky) · 지하(cave) · 성(castle)
+     원작 맵을 베끼지 않고 같은 분위기로 새로 그린 그림이다.
+     각 스테이지는 { sky, strips: [{img, par, y, drift}], ground, fx } 로 만들어져
+     draw() 에서 sky → strips(먼 것부터) → ground 순서로 찍힌다.
+     fx: 화면에 떠다니는 알갱이. snow(눈) · bubble(물방울) · dust(반짝이 먼지) · ember(불티)
+     ===================================================================== */
+  const shadeHex = (hex, k) => {
+    const n = parseInt(hex.slice(1), 16);
+    const f = (v) => Math.max(0, Math.min(255, Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k)));
+    return '#' + [n >> 16, (n >> 8) & 255, n & 255].map((v) => f(v).toString(16).padStart(2, '0')).join('');
+  };
+  /* 벽돌 무늬 판 (cw×ch 벽돌, 줄마다 반 칸 엇갈림) */
+  function brickWall(g, x0, y0, w, h, cw, ch, c) {
+    for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) {
+      const row = Math.floor((y - y0) / ch), bx = ((x - x0) + (row % 2) * (cw >> 1)) % cw, by = (y - y0) % ch;
+      let v = c.fill;
+      if (by === ch - 1 || bx === cw - 1) v = c.line;
+      else if (by === 0 || bx === 0) v = c.light;
+      else if (c.dark && (by === ch - 2 || bx === cw - 2)) v = c.dark;
+      g.set(((x % g.w) + g.w) % g.w, y, v);
+    }
+  }
+  function blockGround(c, top) {
+    const Wd = 32, H = VH - GY;
+    const g = new Grid(Wd, H);
+    brickWall(g, 0, 0, Wd, H, 16, 8, c);
+    if (top) for (let x = 0; x < Wd; x++) {
+      const d = 2 + ((x * 5) % 7 === 0 ? 1 : 0);
+      for (let y = 0; y < d; y++) g.set(x, y, y === d - 1 ? top.shade : top.fill);
+    }
+    return g.toCanvas();
+  }
+
+  /* ---------- 물속 ---------- */
+  function buildWater() {
+    const sky = (() => {
+      const g = new Grid(VW, VH);
+      const bands = [['#4aa0f4', 0], ['#3a88e2', 30], ['#2c70cc', 66], ['#2058b2', 100], ['#18469a', 128]];
+      for (let y = 0; y < VH; y++) {
+        let i = 0;
+        while (i < bands.length - 1 && y >= bands[i + 1][1]) i++;
+        for (let x = 0; x < VW; x++) {
+          const nx = bands[i + 1];
+          g.set(x, y, nx && y >= nx[1] - 3 && (x + y) % 2 === 0 ? nx[0] : bands[i][0]);
+        }
+      }
+      /* 물 위 표면의 물결 */
+      for (let x = 0; x < VW; x++) {
+        const d = 3 + Math.round(Math.sin(x * .25) * 1.3);
+        for (let y = 0; y < d; y++) g.set(x, y, y === d - 1 ? '#c8f0ff' : '#8ad4ff');
+      }
+      /* 비스듬히 내려오는 햇살 (바둑판 점) */
+      [30, 96, 170, 250].forEach((rx, k) => {
+        for (let y = 4; y < 118; y++) for (let x = 0; x < VW; x++) {
+          const d = x - rx - y * .42;
+          if (d >= 0 && d < 7 + k % 2 * 3 && (x + y) % 2 === 0 && y < 118 - d * 4) g.set(x, y, shadeHex(g.get(x, y) || '#2c70cc', .16));
+        }
+      });
+      return g.toCanvas();
+    })();
+    const far = buildFar({ far: { fill: '#1c4c9c', snow: '#1c4c9c', line: '#163e84' } }, 320);
+    const fish = (() => {
+      const Wd = 480, g = new Grid(Wd, 70), r = rng(23);
+      for (let s = 0; s < 5; s++) {
+        const cx = 40 + s * 92 + r() * 30, cy = 10 + r() * 46, n = 3 + Math.floor(r() * 3);
+        for (let k = 0; k < n; k++) {
+          const x = cx + k * 9 + r() * 4, y = cy + (k % 2) * 6 + r() * 3;
+          g.part(any(ellipse(x, y, 4, 2.2), tri(x + 3, y, x + 7, y - 3, x + 7, y + 3)), { fill: '#1a4690' });
+          g.set(Math.round(x - 2), Math.round(y - 1), '#4a88d8');
+        }
+      }
+      return g.toCanvas();
+    })();
+    const dunes = buildHills({ hill: { fill: '#1e5c96', light: '#2c74b0', dark: '#174a7c', line: '#0c2c52', snow: null, snowShade: null } }, 384, 41);
+    const reef = (() => {
+      const Wd = 512, H = 70, base = 69, g = new Grid(Wd, H), r = rng(77);
+      const CORAL = [['#ff6a8a', '#ffb0c0', '#c03a5a'], ['#ff9a3a', '#ffd08a', '#c0601a'], ['#c87af0', '#ecc0ff', '#8a3ab8']];
+      for (let x = 14; x < Wd - 14; x += 26 + r() * 30) {
+        if (r() < .55) {
+          /* 해초: 물결처럼 흔들리는 줄기 */
+          const h = 24 + r() * 36;
+          for (let k = 0; k < 2; k++) {
+            const sx = x + k * 5;
+            for (let y = base; y > base - h + k * 6; y--) {
+              const xx = Math.round(sx + Math.sin(y * .28 + k) * 2);
+              g.set(xx, y, '#0e5a3a'); g.set(xx + 1, y, '#2aa060'); g.set(xx + 2, y, '#0e5a3a');
+              if (y % 7 === 0) g.set(xx + 3, y - 1, '#5ad08a');
+            }
+          }
+        } else {
+          /* 산호: 동글동글 뭉친 가지 */
+          const [fill, light, dark] = CORAL[Math.floor(r() * CORAL.length)];
+          const h = 12 + r() * 14, w = 8 + r() * 6;
+          const blobs = [ellipse(x, base - h * .4, w * .5, h * .45)];
+          for (let k = 0; k < 4; k++) blobs.push(ellipse(x + (k - 1.5) * w * .45, base - h * (.6 + (k % 2) * .3), 3 + r() * 2, 3 + r() * 2));
+          g.part(any(...blobs), { fill, light, shade: dark, line: '#0c2c52' });
+        }
+      }
+      return g.toCanvas();
+    })();
+    return {
+      sky, fx: 'bubble',
+      strips: [
+        { img: far, par: .08, y: GY - 100 },
+        { img: fish, par: .15, y: 20, drift: -6 },
+        { img: dunes, par: .3, y: GY - 70 },
+        { img: reef, par: .7, y: GY - 70 }
+      ],
+      ground: blockGround({ fill: '#d8b070', light: '#f6d898', dark: '#b08848', line: '#5a3a14' }, { fill: '#f6e6b0', shade: '#d8c07a' })
+    };
+  }
+
+  /* ---------- 하늘 ---------- */
+  function buildSkyStage() {
+    const sky = buildSky({ sky: [['#4aa8ff', 0], ['#68baff', 40], ['#8acaff', 80], ['#acdcff', 112]] }, 'skyland');
+    const puff = (g, x, y, s, c) => g.part(any(ellipse(x, y + 4, 16 * s, 7 * s), ellipse(x - 9 * s, y + 3, 8 * s, 6 * s), ellipse(x + 2 * s, y - 1, 9 * s, 8 * s), ellipse(x + 11 * s, y + 3, 8 * s, 6 * s)), c);
+    /* 저 아래 깔린 구름 바다 */
+    const sea = (() => {
+      const Wd = 320, H = 46, g = new Grid(Wd, H), r = rng(5);
+      const bumps = [];
+      for (let x = 0; x < Wd; x += 14 + r() * 12) bumps.push([x, 10 + r() * 12, 10 + r() * 8]);
+      g.part(wrap(Wd, (x, y) => y > 30 || bumps.some(([cx, cy, rr]) => (x - cx) ** 2 + ((y - cy) * 1.5) ** 2 < rr * rr + (y - cy > 0 ? 400 : 0))), { fill: '#f4faff', line: '#9ac8ee', shade: '#d4eaff', shadeW: 2 });
+      return g.toCanvas();
+    })();
+    /* 멀리 떠 있는 작은 눈섬 */
+    const isles = (() => {
+      const Wd = 480, H = 70, g = new Grid(Wd, H), r = rng(31);
+      for (let x = 40; x < Wd - 40; x += 110 + r() * 60) {
+        const y = 18 + r() * 30, w = 12 + r() * 10;
+        g.part(tri(x - w, y, x + w, y, x, y + w * 1.1), { fill: '#8a5a34', line: '#3a2410', shade: '#5a3418' });
+        g.part(ellipse(x, y, w + 1, 3.2), { fill: '#ffffff', line: '#3a2410', shade: '#cfe6ff' });
+        g.part(tri(x - 4, y - 1, x + 4, y - 1, x, y - 13), { fill: '#2a9a54', line: '#0f3a1a', light: '#5ac87a' });
+        g.set(Math.round(x), Math.round(y - 13), '#ffffff');
+      }
+      return g.toCanvas();
+    })();
+    const clouds = buildClouds({ cloud: { fill: '#ffffff', shade: '#e4f2ff', line: '#6aa4d8' } }, 480, 'skyland');
+    /* 버섯 발판 (원작 하늘 맵의 큰 버섯 같은 느낌) */
+    const shrooms = (() => {
+      const Wd = 512, H = 90, base = 90, g = new Grid(Wd, H), r = rng(53);
+      const CAPS = [['#e2383f', '#ff8a8a', '#94162a'], ['#3cb85a', '#8ef08a', '#1d7034'], ['#ff9a1f', '#ffd07a', '#b8580a']];
+      for (let x = 30; x < Wd - 30; x += 70 + r() * 70) {
+        const h = 30 + r() * 46, w = 14 + r() * 10;
+        const [fill, light, dark] = CAPS[Math.floor(r() * CAPS.length)];
+        g.part(rect(x - 3, base - h, x + 3, base), { fill: '#f0dcb0', line: INK, shade: '#c8a878' });
+        g.part((xx, yy) => yy <= base - h + 1 && ((xx - x) / w) ** 2 + ((yy - (base - h + 1)) / 8) ** 2 <= 1, { fill, line: INK, light, shade: dark });
+        for (let k = -1; k <= 1; k++) g.part(ellipse(x + k * w * .55, base - h - 3 + Math.abs(k) * 2, 2.2, 1.6), { fill: '#ffffff' });
+      }
+      return g.toCanvas();
+    })();
+    /* 땅 = 폭신한 구름 블록 */
+    const ground = (() => {
+      const Wd = 32, H = VH - GY, g = new Grid(Wd, H);
+      for (let x = 0; x < Wd; x++) {
+        const d = (x % 16) - 7.5, top = Math.round(8 - Math.sqrt(Math.max(0, 64 - d * d)) * .85);
+        for (let y = top; y < H; y++) {
+          let v = '#ffffff';
+          if (y === top) v = '#7ab4e4';
+          else if (y === top + 1 && Math.abs(d) > 3) v = '#ffffff';
+          else if (y > H - 4) v = '#c4e0fa';
+          else if (y > top + 6 && (x + y) % 4 === 0) v = '#e2f0ff';
+          g.set(x, y, v);
+        }
+      }
+      return g.toCanvas();
+    })();
+    return {
+      sky, fx: 'snow',
+      strips: [
+        { img: isles, par: .08, y: 10 },
+        { img: clouds, par: .2, y: 6, drift: 3 },
+        { img: sea, par: .3, y: GY - 46 },
+        { img: shrooms, par: .65, y: GY - 90 }
+      ],
+      ground
+    };
+  }
+
+  /* ---------- 지하 (얼음 동굴) ---------- */
+  function buildCave() {
+    const sky = (() => {
+      const g = new Grid(VW, VH);
+      g.rect(0, 0, VW, VH, '#06081c');
+      return g.toCanvas();
+    })();
+    /* 뒤쪽 어두운 벽돌 벽 */
+    const wall = (() => {
+      const g = new Grid(64, GY);
+      brickWall(g, 0, 0, 64, GY, 16, 8, { fill: '#0e1638', light: '#152050', line: '#070b20' });
+      return g.toCanvas();
+    })();
+    /* 벽돌 기둥 */
+    const pillars = (() => {
+      const Wd = 480, g = new Grid(Wd, GY), r = rng(61);
+      for (let x = 20; x < Wd - 30; x += 70 + r() * 80) {
+        const w = 14 + Math.floor(r() * 3) * 4;
+        brickWall(g, Math.round(x), 0, w, GY, 8, 4, { fill: '#1a3a8a', light: '#2e56b8', dark: '#132c6a', line: '#081440' });
+        for (let y = 0; y < GY; y++) { g.set(Math.round(x) - 1, y, INK); g.set(Math.round(x) + w, y, INK); }
+      }
+      return g.toCanvas();
+    })();
+    /* 천장: 파란 벽돌 줄 + 고드름 */
+    const ceiling = (() => {
+      const Wd = 512, g = new Grid(Wd, 40), r = rng(3);
+      brickWall(g, 0, 0, Wd, 8, 8, 4, { fill: '#2a5ad0', light: '#6a9aff', dark: '#1a3a90', line: '#081440' });
+      for (let x = 0; x < Wd; x += 5 + Math.floor(r() * 9)) {
+        const len = 6 + r() * 22, w = 2 + r() * 3;
+        g.part(tri(x - w, 7, x + w, 7, x, 7 + len), { fill: '#9ae8ff', line: '#0e3a52', light: '#ffffff', shade: '#5ac0e0' });
+      }
+      return g.toCanvas();
+    })();
+    /* 바닥의 얼음 결정과 돌기둥 */
+    const crystals = (() => {
+      const Wd = 512, H = 60, base = 59, g = new Grid(Wd, H), r = rng(19);
+      const th = { tree: { fill: '#5ad0f0', light: '#c8f6ff', dark: '#2a8ab0', line: '#0a2c40' } };
+      for (let x = 24; x < Wd - 24; x += 40 + r() * 50) {
+        if (r() < .75) crystal(g, Math.round(x), base, 12 + r() * 22, th);
+        else g.part(tri(x - 7, base, x + 7, base, x, base - 18 - r() * 14), { fill: '#3a4a7a', line: INK, light: '#5a6aa0', shade: '#242e54' });
+      }
+      return g.toCanvas();
+    })();
+    return {
+      sky, fx: 'dust',
+      strips: [
+        { img: wall, par: .08, y: 0 },
+        { img: pillars, par: .3, y: 0 },
+        { img: crystals, par: .7, y: GY - 59 },
+        { img: ceiling, par: .7, y: 0 }
+      ],
+      ground: blockGround({ fill: '#2a5ad0', light: '#6a9aff', dark: '#1a3a90', line: '#081440' }, { fill: '#cfeeff', shade: '#7ab8e8' })
+    };
+  }
+
+  /* ---------- 성 (난이도 '상' = 월드의 마지막 관문). tint = 분야 색 (깃발·창문 빛) ---------- */
+  function buildCastle(tint) {
+    tint = /^#[0-9a-f]{6}$/i.test(tint || '') ? tint : '#e2383f';
+    const sky = (() => {
+      const g = new Grid(VW, VH);
+      g.rect(0, 0, VW, VH, '#120a16');
+      return g.toCanvas();
+    })();
+    /* 돌벽 + 아치 창문 + 분야 색 깃발 */
+    const wall = (() => {
+      const Wd = 320, g = new Grid(Wd, GY);
+      brickWall(g, 0, 0, Wd, GY, 16, 8, { fill: '#2e2838', light: '#3c3448', line: '#16121e' });
+      const glow = shadeHex(tint, -.45), glow2 = shadeHex(tint, -.2);
+      for (let x = 40; x < Wd; x += 80) {
+        const top = 40, bot = 92;
+        g.part(any(rect(x - 11, top + 10, x + 11, bot), ellipse(x, top + 10, 11, 11)), { fill: glow, line: '#08060c', light: glow2 });
+        for (let y = top; y < bot; y++) { g.set(x - 4, y, '#08060c'); g.set(x + 4, y, '#08060c'); }
+        g.rect(x - 11, top + 26, 23, 1, '#08060c');
+        g.part(ellipse(x + 5, top + 6, 2.4, 2.4), { fill: '#fff6c8' });
+        /* 깃발 */
+        const bx = x + 40;
+        g.part(any(rect(bx - 9, 0, bx + 9, 44), tri(bx - 9, 44, bx + 9, 44, bx, 34)), { fill: tint, line: '#08060c', light: shadeHex(tint, .3), shade: shadeHex(tint, -.35) });
+        g.stamp(['#.#.#', '#####', '#####'], bx - 2, 16, { '#': '#ffd23f' });
+      }
+      return g.toCanvas();
+    })();
+    /* 뒤쪽 용암 */
+    const lava = (() => {
+      const Wd = 128, H = 24, g = new Grid(Wd, H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < Wd; x++) {
+        const top = 6 + Math.round(Math.sin(x * .19) * 2 + Math.sin(x * .07) * 1.5);
+        if (y < top) continue;
+        g.set(x, y, y === top ? '#ffe07a' : y < top + 3 ? '#ff9a2a' : (x + y) % 5 === 0 ? '#ff6a1a' : '#d03a10');
+      }
+      [[20, 14], [70, 17], [104, 12]].forEach(([x, y]) => g.part(ellipse(x, y, 2.2, 1.6), { fill: '#ffd23f' }));
+      return g.toCanvas();
+    })();
+    /* 앞쪽 기둥 + 횃불, 위에서 늘어진 사슬 */
+    const pillars = (() => {
+      const Wd = 512, g = new Grid(Wd, GY), r = rng(83);
+      for (let x = 50; x < Wd - 30; x += 120 + r() * 60) {
+        const w = 18;
+        brickWall(g, Math.round(x), 8, w, GY - 8, 9, 6, { fill: '#5a5468', light: '#7a7488', dark: '#46405a', line: '#1a1622' });
+        g.part(rect(x - 3, 0, x + w + 3, 8), { fill: '#6a6478', line: '#1a1622', light: '#8a8498' });
+        for (let y = 8; y < GY; y++) { g.set(Math.round(x) - 1, y, '#08060c'); g.set(Math.round(x) + w, y, '#08060c'); }
+        /* 횃불 */
+        const tx = Math.round(x + w / 2), ty = 62;
+        g.part(rect(tx - 2, ty, tx + 2, ty + 8), { fill: '#6a4a2a', line: '#08060c' });
+        g.part(any(ellipse(tx, ty - 3, 4, 5), tri(tx - 3, ty - 4, tx + 3, ty - 4, tx, ty - 14)), { fill: '#ff8a1a', line: '#7a1a0a', shade: '#e2383f' });
+        g.part(ellipse(tx, ty - 3, 2, 3), { fill: '#ffe07a' });
+      }
+      /* 사슬 */
+      for (let x = 20; x < Wd; x += 90 + Math.floor(r() * 40)) {
+        const len = 20 + Math.floor(r() * 26);
+        for (let y = 0; y < len; y++) {
+          const k = y % 4;
+          if (k === 0 || k === 3) g.set(x, y, '#8a8498');
+          else { g.set(x - 1, y, '#8a8498'); g.set(x + 1, y, '#5a5468'); }
+        }
+      }
+      return g.toCanvas();
+    })();
+    return {
+      sky, fx: 'ember',
+      strips: [
+        { img: wall, par: .1, y: 0 },
+        { img: lava, par: .3, y: GY - 22, drift: 2 },
+        { img: pillars, par: .7, y: 0 }
+      ],
+      ground: blockGround({ fill: '#8a8496', light: '#c4c0d0', dark: '#5e586c', line: '#1a1622' }, null)
+    };
+  }
+  const STAGE_BUILD = { water: buildWater, sky: buildSkyStage, cave: buildCave, castle: buildCastle };
+
   /* ---------- 상태 ---------- */
-  const W = { cv: null, g: null, mode: 'side', theme: 'day', cam: 0, vel: 0, pan: null, layers: {}, map: null, snow: [], t: 0, last: 0, shake: 0 };
+  const W = { cv: null, g: null, mode: 'side', theme: 'day', tint: null, fx: 'snow', cam: 0, vel: 0, pan: null, layers: {}, map: null, snow: [], t: 0, last: 0, shake: 0 };
   const LAYER_W = { far: 320, hills: 384, clouds: 480, near: 512 };
 
-  function layers(name) {
+  function layers(name, tint) {
+    if (STAGE_BUILD[name]) {
+      const k = name + (name === 'castle' ? `|${tint || ''}` : '');
+      return W.layers[k] || (W.layers[k] = STAGE_BUILD[name](tint));
+    }
     if (W.layers[name]) return W.layers[name];
     const th = THEMES[name] || THEMES.day;
     return (W.layers[name] = {
@@ -352,41 +672,71 @@
     });
   }
 
+  let SG = null, SCAM = 0; /* 지금 그리는 캔버스와 카메라 (화면 또는 미리보기 그림) */
   function strip(img, par, y, drift = 0) {
     const w = img.width;
-    let x = -(((W.cam * par + drift) % w) + w) % w;
-    for (; x < VW; x += w) W.g.drawImage(img, Math.round(x), y);
+    let x = -(((SCAM * par + drift) % w) + w) % w;
+    for (; x < VW; x += w) SG.drawImage(img, Math.round(x), y);
+  }
+  /* 옆 스크롤 스테이지 한 장면을 g 에 그린다 */
+  function paintScene(g, theme, tint, cam, t, trees, props) {
+    SG = g; SCAM = cam;
+    if (STAGE_BUILD[theme]) {
+      const L = layers(theme, tint);
+      g.drawImage(L.sky, 0, 0);
+      L.strips.forEach((s) => strip(s.img, s.par, s.y, s.drift ? t * s.drift : 0));
+      strip(L.ground, 1, GY);
+      return;
+    }
+    const L = layers(theme);
+    g.drawImage(L.sky, 0, 0);
+    if (L.stars) L.stars.forEach(([x, y, k]) => {
+      const on = Math.floor(t * 2 + k * 1.7) % 5 !== 0;
+      g.fillStyle = on ? '#ffffff' : '#8a8ad0';
+      g.fillRect(((x - cam * .05) % VW + VW) % VW, y, 1, 1);
+      if (k === 0 && on) { g.fillRect(((x - cam * .05) % VW + VW) % VW - 1, y, 3, 1); g.fillRect(((x - cam * .05) % VW + VW) % VW, y - 1, 1, 3); }
+    });
+    strip(L.far, .08, GY - 100);
+    strip(L.clouds, .2, theme === 'ice' ? 0 : 6, theme === 'ice' ? 0 : t * 3);
+    strip(L.hills2, .25, GY - 82);
+    g.fillStyle = (THEMES[theme] || THEMES.day).hill.fill;
+    g.fillRect(0, GY - 14, VW, 14);
+    strip(L.hills, .4, GY - 66);
+    if (trees !== false) strip(L.near, .7, GY - 59);
+    if (props !== false) strip(L.props, 1, GY - 60);
+    strip(L.ground, 1, GY);
   }
 
   function draw() {
     const g = W.g;
-    if (W.mode === 'map' && W.map) {
-      g.drawImage(W.map, 0, 0);
-    } else {
-      const L = layers(W.theme);
-      g.drawImage(L.sky, 0, 0);
-      if (L.stars) L.stars.forEach(([x, y, k]) => {
-        const on = Math.floor(W.t * 2 + k * 1.7) % 5 !== 0;
-        g.fillStyle = on ? '#ffffff' : '#8a8ad0';
-        g.fillRect(((x - W.cam * .05) % VW + VW) % VW, y, 1, 1);
-        if (k === 0 && on) { g.fillRect(((x - W.cam * .05) % VW + VW) % VW - 1, y, 3, 1); g.fillRect(((x - W.cam * .05) % VW + VW) % VW, y - 1, 1, 3); }
-      });
-      strip(L.far, .08, GY - 100);
-      strip(L.clouds, .2, W.theme === 'ice' ? 0 : 6, W.theme === 'ice' ? 0 : W.t * 3);
-      strip(L.hills2, .25, GY - 82);
-      g.fillStyle = (THEMES[W.theme] || THEMES.day).hill.fill;
-      g.fillRect(0, GY - 14, VW, 14);
-      strip(L.hills, .4, GY - 66);
-      if (W.trees !== false) strip(L.near, .7, GY - 59);
-      if (W.props !== false) strip(L.props, 1, GY - 60);
-      strip(L.ground, 1, GY);
-    }
-    /* 눈 */
-    g.fillStyle = '#ffffff';
-    W.snow.forEach((f) => {
-      const x = Math.round(((f.x - (W.mode === 'map' ? 0 : W.cam * f.z * .3)) % VW + VW) % VW);
-      g.globalAlpha = f.z > .7 ? 1 : .75;
-      g.fillRect(x, Math.round(f.y), f.z > .85 ? 2 : 1, f.z > .85 ? 2 : 1);
+    if (W.mode === 'map' && W.map) g.drawImage(W.map, 0, 0);
+    else paintScene(g, W.theme, W.tint, W.cam, W.t, W.trees, W.props);
+    /* 떠다니는 알갱이: 눈 / 물방울 / 먼지 / 불티 */
+    const fx = W.mode === 'map' ? 'snow' : W.fx;
+    W.snow.forEach((f, i) => {
+      const x = Math.round(((f.x - (W.mode === 'map' ? 0 : W.cam * f.z * .3)) % VW + VW) % VW), y = Math.round(f.y);
+      if (fx === 'bubble') {
+        if (i % 3) return;
+        const big = f.z > .7;
+        g.globalAlpha = .85;
+        g.fillStyle = '#d8f4ff';
+        if (big) { g.fillRect(x, y - 1, 2, 1); g.fillRect(x - 1, y, 1, 2); g.fillRect(x + 2, y, 1, 2); g.fillRect(x, y + 2, 2, 1); g.fillStyle = '#ffffff'; g.fillRect(x, y, 1, 1); }
+        else g.fillRect(x, y, 1, 1);
+      } else if (fx === 'ember') {
+        if (i % 2) return;
+        g.globalAlpha = Math.max(0, Math.min(1, (y - 20) / 80));
+        g.fillStyle = f.z > .6 ? '#ffd23f' : '#ff7a2a';
+        g.fillRect(x, y, 1, f.z > .85 ? 2 : 1);
+      } else if (fx === 'dust') {
+        if (i % 2) return;
+        g.globalAlpha = .35 + .4 * Math.abs(Math.sin(W.t * 2 + f.p));
+        g.fillStyle = f.z > .5 ? '#9ad8ff' : '#5a8ad8';
+        g.fillRect(x, y, 1, 1);
+      } else {
+        g.fillStyle = '#ffffff';
+        g.globalAlpha = f.z > .7 ? 1 : .75;
+        g.fillRect(x, y, f.z > .85 ? 2 : 1, f.z > .85 ? 2 : 1);
+      }
     });
     g.globalAlpha = 1;
   }
@@ -401,10 +751,22 @@
       W.cam = W.pan.from + (W.pan.to - W.pan.from) * e;
       if (p >= 1) W.pan = null;
     } else W.cam += W.vel * dt;
+    const fx = W.mode === 'map' ? 'snow' : W.fx;
     W.snow.forEach((f) => {
-      f.y += (8 + f.z * 14) * dt;
-      f.x += Math.sin(W.t * 1.3 + f.p) * 4 * dt * f.z;
-      if (f.y > VH) { f.y = -2; f.x = Math.random() * VW; }
+      if (fx === 'bubble' || fx === 'ember') {
+        /* 아래에서 위로 올라간다 */
+        f.y -= (fx === 'bubble' ? 10 + f.z * 18 : 6 + f.z * 12) * dt;
+        f.x += Math.sin(W.t * 2 + f.p) * (fx === 'bubble' ? 8 : 5) * dt;
+        if (f.y < -2) { f.y = GY + Math.random() * 6; f.x = Math.random() * VW; }
+      } else if (fx === 'dust') {
+        f.y += Math.sin(W.t * .7 + f.p) * 2 * dt;
+        f.x += (1 + f.z * 2) * dt;
+        if (f.y > GY || f.y < 0) f.y = Math.random() * GY;
+      } else {
+        f.y += (8 + f.z * 14) * dt;
+        f.x += Math.sin(W.t * 1.3 + f.p) * 4 * dt * f.z;
+        if (f.y > VH) { f.y = -2; f.x = Math.random() * VW; }
+      }
     });
     draw();
     requestAnimationFrame(frame);
@@ -419,13 +781,31 @@
       const n = Math.max(0, Math.min(400, snowAmount == null ? 120 : snowAmount));
       for (let i = 0; i < n; i++) W.snow.push({ x: Math.random() * VW, y: Math.random() * VH, z: Math.random(), p: Math.random() * 6 });
       Object.keys(THEMES).forEach((k) => setTimeout(() => layers(k), 50));
+      ['water', 'sky', 'cave'].forEach((k) => setTimeout(() => layers(k), 120));
       requestAnimationFrame(frame);
     },
     /* 옆 스크롤 스테이지 */
-    side(theme, { vel = 0, props = true, trees = true } = {}) { W.mode = 'side'; W.theme = THEMES[theme] ? theme : 'day'; W.vel = vel; W.pan = null; W.props = props; W.trees = trees; },
+    side(theme, { vel = 0, props = true, trees = true, tint = null } = {}) {
+      W.mode = 'side'; W.theme = THEMES[theme] || STAGE_BUILD[theme] ? theme : 'day'; W.tint = tint;
+      W.fx = STAGE_BUILD[W.theme] ? layers(W.theme, tint).fx : 'snow';
+      if (W.fx !== 'snow') W.snow.forEach((f) => { f.y = Math.random() * GY; });
+      W.vel = vel; W.pan = null; W.props = props; W.trees = trees;
+    },
     /* 카메라를 dx 칸만큼 부드럽게 옮긴다 */
     pan(dx, ms = 1200) { W.vel = 0; W.pan = { from: W.cam, to: W.cam + dx, start: performance.now(), ms }; },
     speed(v) { W.vel = v; W.pan = null; },
+    /* 스테이지 한 부분을 잘라 그림 주소(dataURL)로. 파이프 판의 탑 배경에 쓴다 (칸 단위) */
+    snapshot(theme, { tint = null, cam = 0, x = 0, y = 0, w = VW, h = VH, trees = true, props = false } = {}) {
+      const c = document.createElement('canvas');
+      c.width = VW; c.height = VH;
+      const g = c.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      paintScene(g, THEMES[theme] || STAGE_BUILD[theme] ? theme : 'day', tint, cam, 0, trees, props);
+      const out = document.createElement('canvas');
+      out.width = w; out.height = h;
+      out.getContext('2d').drawImage(c, x, y, w, h, 0, 0, w, h);
+      return out.toDataURL();
+    },
     /* 월드 지도. layout.islands = [{x,y,w,h,theme,path:[[x,y],...]}] (칸 단위) */
     map(layout) { W.mode = 'map'; W.vel = 0; W.pan = null; W.map = buildMap(layout); }
   };

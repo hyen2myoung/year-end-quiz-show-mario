@@ -67,8 +67,13 @@ SW 센터 송년회 퀴즈쇼 (옛날 횡스크롤 게임 테마) 사용법
 구름이가 블록을 치고 선물이 튀어나온 뒤 정답 화면으로 넘어갑니다.
 
 [분야, 난이도, 제목]  data/settings.js
- · categories 의 stage 로 분야별 스테이지 배경을 고릅니다.
-   day = 한낮 눈 언덕, night = 별 뜬 밤 마을, sunset = 노을 언덕, ice = 얼음 동굴
+ · 분야 = 월드, 난이도 = 스테이지 (마리오 게임처럼).
+   categories 의 stage 로 월드 테마를 고릅니다: day(눈 덮인 평원) · water(물속) · sky(하늘) · cave(지하 얼음 동굴).
+   지금은 상식 = 평원, 청각 = 물속, 시각 = 하늘, 두뇌 = 지하.
+   levels 에서 castle: true 인 난이도(지금은 '상')는 그 월드의 마지막 관문 '성' 스테이지가 됩니다 (돌벽·용암·횃불, 깃발은 분야 색).
+   파이프 화면의 탑 뒤에도 그 월드 풍경이 깔리고, 맨 위 성 층은 성벽 풍경과 돌 벽돌 발판으로 바뀝니다.
+   입장 카드에는 "WORLD 2-3 · 물속 월드의 성"처럼 월드 번호와 스테이지 이름이 나옵니다.
+   예전 겨울 테마 night(별 뜬 밤 마을) · sunset(노을 언덕) · ice(얼음 동굴)도 stage 에 그대로 쓸 수 있습니다.
  · color 는 파이프 색, 탑 간판, 문제 창 이름표 색입니다.
  · levels 는 탑의 층 순서(위에 적은 것이 아래층)와 그 층 벽돌 색입니다.
  · titleTop, titleMain, subtitle, eyebrow, year, credit 은 표지 글씨입니다.
@@ -95,7 +100,14 @@ F5, Ctrl+R, 뒤로 가기는 막혀 있습니다. 브라우저 버튼으로 새�
 
 [배경음·효과음]
 배경음: 표지는 Super Mario Bros 「Overworld Theme」, 문제 고르는 파이프 화면은 Super Mario Bros 3 「World Map 1·2·3·4·7」을 차례로 돌려 틉니다.
-  문제·정답 화면에서는 꺼지고, 지도로 돌아오면 멈췄던 곳부터 이어집니다. 곡 파일은 assets/bgm 폴더, 곡 목록·음량은 settings.js 의 bgmTracks / bgmVolume.
+  문제·정답 화면은 월드와 난이도마다 다른 곡이 나옵니다 (settings.js categories 의 bgm, 하·중·상 순서).
+    상식(평원): SMB Overworld / NSMB Overworld / 성 NSMB Tower
+    청각(물속): SMB Underwater / NSMB Underwater / 성 SMB3 Castle
+    시각(하늘): SMB3 Sky / NSMB Athletic / 성 NSMB Castle
+    두뇌(지하): SMB Underground / NSMB Underground / 성 SMB3 Boss Battle
+  문제의 음악 재생, P Switch 타이머, 시간 종료, Level Clear 동안에는 배경음이 잠깐 멈췄다가 다시 나옵니다.
+  지도로 돌아오면 지도 곡이 멈췄던 곳부터 이어집니다.
+  곡 파일은 assets/bgm 폴더, 표지·지도 곡 목록과 음량은 settings.js 의 bgmTracks / bgmVolume.
   브라우저 정책상 첫 클릭(또는 키 입력) 뒤부터 소리가 납니다. 끄려면 settings.js 의 bgm: false.
 효과음: 받아 둔 마리오 효과음을 원작에서 그 소리가 나는 동작에 붙였습니다 (assets/sfx 폴더, 앞뒤 빈 소리를 자르고 음량을 맞춤).
   점프 = Jump, 블록 치기·새로고침 막힘 = Bump, 동전 = Coin, 펭귄 밟기 = Stomp, 파이프 = Pipe,

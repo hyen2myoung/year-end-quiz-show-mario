@@ -11,23 +11,38 @@ window.QUIZ_SETTINGS = {
   subtitle: "구름이와 노을이의 겨울 대모험",
   credit: "SEMES SWCC",                /* 표지 맨 아래 작은 글씨 (© 연도 뒤에 붙음) */
 
-  /* 지도의 섬(분야). 왼쪽부터 순서대로 나옵니다.
+  /* 분야 = 월드. 왼쪽부터 순서대로 나옵니다.
      icon : book, note, eye, bulb 중 선택
-     stage: 문제 화면 배경. day(한낮 눈 언덕), night(별 뜬 밤 마을), sunset(노을 언덕), ice(얼음 동굴) 중 선택
-     color: 분야 간판 색 */
+     stage: 문제 화면 배경(월드 테마). day(눈 덮인 평원), water(물속), sky(하늘), cave(지하 얼음 동굴)
+            예전 테마 night(밤 마을), sunset(노을 언덕), ice(얼음 동굴)도 쓸 수 있습니다.
+     color: 분야 간판 색. 성 스테이지의 깃발·창문 색도 이 색을 씁니다.
+     bgm  : 문제 화면 배경음. 아래 levels 순서(하, 중, 상)대로 한 곡씩. 비우면("") 조용합니다. */
   categories: [
-    { name: "상식", icon: "book", stage: "day", color: "#2f7ae8" },
-    { name: "청각", icon: "note", stage: "night", color: "#7a4ae0" },
-    { name: "시각", icon: "eye", stage: "sunset", color: "#e8602a" },
-    { name: "두뇌", icon: "bulb", stage: "ice", color: "#1a9ab8" }
+    { name: "상식", icon: "book", stage: "day", color: "#2f7ae8",
+      bgm: ["assets/bgm/title.mp3",       /* 하: Super Mario Bros - Overworld */
+            "assets/bgm/grass-2.mp3",     /* 중: New Super Mario Bros - Overworld */
+            "assets/bgm/castle-1.mp3"] }, /* 상: New Super Mario Bros - Tower */
+    { name: "청각", icon: "note", stage: "water", color: "#7a4ae0",
+      bgm: ["assets/bgm/water-1.mp3",     /* 하: Super Mario Bros - Underwater */
+            "assets/bgm/water-2.mp3",     /* 중: New Super Mario Bros - Underwater */
+            "assets/bgm/castle-2.mp3"] }, /* 상: Super Mario Bros 3 - Castle */
+    { name: "시각", icon: "eye", stage: "sky", color: "#e8602a",
+      bgm: ["assets/bgm/sky-1.mp3",       /* 하: Super Mario Bros 3 - Sky */
+            "assets/bgm/sky-2.mp3",       /* 중: New Super Mario Bros - Athletic */
+            "assets/bgm/castle-3.mp3"] }, /* 상: New Super Mario Bros - Castle */
+    { name: "두뇌", icon: "bulb", stage: "cave", color: "#1a9ab8",
+      bgm: ["assets/bgm/cave-1.mp3",      /* 하: Super Mario Bros - Underground */
+            "assets/bgm/cave-2.mp3",      /* 중: New Super Mario Bros - Underground */
+            "assets/bgm/castle-4.mp3"] }  /* 상: Super Mario Bros 3 - Boss Battle */
   ],
 
-  /* 섬 안의 줄(난이도). 위에서부터 순서대로 나오고, 아래로 갈수록 별이 늘어납니다.
-     color: 칸 색. green, gold, red, blue, purple 중 선택 */
+  /* 월드 안의 줄(난이도). 위에서부터 순서대로 나오고, 아래로 갈수록 별이 늘어납니다.
+     color : 칸 색. green, gold, red, blue, purple 중 선택
+     castle: true 이면 그 난이도는 월드의 마지막 관문 '성' 스테이지 (돌벽·용암·횃불 배경) */
   levels: [
     { name: "하", color: "green" },
     { name: "중", color: "gold" },
-    { name: "상", color: "red" }
+    { name: "상", color: "red", castle: true }
   ],
 
   /* 줄마다 칸 수 (1~4) */
@@ -49,7 +64,7 @@ window.QUIZ_SETTINGS = {
   sfxVolume: 0.8,       /* 효과음 음량 0 ~ 1 */
 
   /* 배경음. 화면마다 적은 곡을 순서대로 돌려 틉니다 (한 곡이면 반복).
-     title: 표지, map: 문제 고르는 파이프 화면. 문제·정답 화면에서는 꺼집니다. */
+     title: 표지, map: 문제 고르는 파이프 화면. 문제·정답 화면 곡은 위 categories 의 bgm. */
   bgm: true,
   bgmTracks: {
     title: ["assets/bgm/title.mp3"],   /* Super Mario Bros - Overworld Theme */

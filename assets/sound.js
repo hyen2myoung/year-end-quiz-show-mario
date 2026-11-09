@@ -1,7 +1,7 @@
 /* 효과음·배경음.
    효과음 파일은 assets/sfx (받아 둔 마리오 효과음에서 앞뒤 빈 소리를 잘라 음량을 맞춘 것).
    파일이 없는 짧은 "삑" 소리(커서·대화창·멈춤)는 옛날 게임기 소리처럼 코드로 만든다.
-   배경음(Bgm)은 아래쪽, 곡은 settings.js 의 bgmTracks 에서 고른다.
+   배경음(Bgm)은 아래쪽. 표지·파이프 화면 곡은 settings.js 의 bgmTracks, 문제 화면 곡은 categories 의 bgm.
 
    이름        언제 나는 소리                         소리
    start       표지에서 게임 시작                     1UP
@@ -84,7 +84,9 @@
     has(sec) { return Sound.enabled && PSW.includes(sec); },
     /* 매 프레임 부른다. running 이면 남은 시간에 맞춰 곡을 틀고, 아니면 멈춘다 */
     sync(status, sec, remainMs) {
-      if (status !== 'running' || !this.has(sec)) { this.pause(); return; }
+      const on = status === 'running' && this.has(sec);
+      if (window.Bgm) window.Bgm.hold(on, 'timer'); /* P Switch 가 도는 동안 배경음은 잠깐 쉰다 */
+      if (!on) { this.pause(); return; }
       if (!this.a || this.sec !== sec) {
         this.stop();
         this.a = new Audio(`${DIR}pswitch${sec}.mp3`);
@@ -99,7 +101,7 @@
       }
     },
     pause() { if (this.a && !this.a.paused) this.a.pause(); },
-    stop() { if (!this.a) return; this.a.pause(); this.a.removeAttribute('src'); this.a.load(); this.a = null; this.sec = 0; }
+    stop() { if (window.Bgm) window.Bgm.hold(false, 'timer'); if (!this.a) return; this.a.pause(); this.a.removeAttribute('src'); this.a.load(); this.a = null; this.sec = 0; }
   };
 
   const Sound = {
@@ -119,9 +121,9 @@
         case 'timerStart': if (!Timer.has(opts.sec)) beep([[988, 0.06], [1319, 0.1]], 0.1); break;
         case 'pause': beep([[1319, 0.06], [1047, 0.06], [1319, 0.06], [1047, 0.1]], 0.1); break;
         case 'tick': beep([[opts.urgent ? 1760 : 1175, 0.045]], opts.urgent ? 0.1 : 0.06); break;
-        case 'timeUp': Timer.stop(); file('timeup'); break;
+        case 'timeUp': Timer.stop(); if (window.Bgm) window.Bgm.quiet(2800); file('timeup'); break;
         case 'reveal': file('item'); setTimeout(() => file('powerup'), 520); break;
-        case 'clear': file('clear'); break;
+        case 'clear': if (window.Bgm) window.Bgm.quiet(5700); file('clear'); break;
         case 'flag': file('flag'); break;
         case 'allClear':
           if (window.Bgm) window.Bgm.quiet(7000);
@@ -139,11 +141,11 @@
      브라우저는 첫 클릭/키 입력 전에는 소리를 막으므로 start() 가 불릴 때 실제로 재생된다.
      지도 곡은 문제를 풀고 돌아왔을 때 멈췄던 곳부터 이어서 나온다. */
   const Bgm = {
-    unlocked: false, want: null, held: false, quietUntil: 0, players: {},
+    unlocked: false, want: null, holds: {}, quietUntil: 0, players: {}, lists: {},
     vol() { return Math.max(0, Math.min(1, SET.bgmVolume == null ? 0.5 : SET.bgmVolume)); },
     player(name) {
       if (this.players[name]) return this.players[name];
-      const list = ((SET.bgmTracks || {})[name] || []).filter(Boolean);
+      const list = (this.lists[name] || (SET.bgmTracks || {})[name] || []).filter(Boolean);
       if (!list.length) return null;
       const a = new Audio();
       a.preload = 'auto';
@@ -153,7 +155,7 @@
       a.addEventListener('ended', () => { pl.i = (pl.i + 1) % list.length; a.src = list[pl.i]; if (this.active() === name) a.play().catch(() => {}); });
       return (this.players[name] = pl);
     },
-    active() { return this.unlocked && !this.held && Date.now() >= this.quietUntil ? this.want : null; },
+    active() { return this.unlocked && !Object.values(this.holds).some(Boolean) && Date.now() >= this.quietUntil ? this.want : null; },
     fadeTo(pl, target, ms, done) {
       clearInterval(pl.fade);
       const a = pl.a, from = a.volume, t0 = Date.now();
@@ -174,13 +176,24 @@
       if (pl.a.paused) { pl.a.volume = 0; pl.a.play().catch(() => {}); }
       this.fadeTo(pl, this.vol(), 600);
     },
-    scene(name) { this.want = name || null; this.sync(); },
+    /* list 를 주면 그 곡 목록으로 등록. restart 면 처음부터 (새 스테이지에 들어갈 때) */
+    scene(name, list, { restart = false } = {}) {
+      if (name && list) this.lists[name] = list;
+      if (name && restart && this.players[name] && this.want !== name) {
+        const pl = this.players[name];
+        clearInterval(pl.fade); pl.a.pause();
+        if (pl.i !== 0) { pl.i = 0; pl.a.src = pl.list[0]; }
+        try { pl.a.currentTime = 0; } catch (e) {}
+      }
+      this.quietUntil = name === this.want ? this.quietUntil : 0;
+      this.want = name || null; this.sync();
+    },
     start() { if (this.unlocked) return; this.unlocked = true; this.sync(); },
     stop() { this.scene(null); },
     /* 잠깐 조용히 (모든 문제 끝 축하 음악이 나오는 동안) */
     quiet(ms) { this.quietUntil = Date.now() + ms; this.sync(); setTimeout(() => this.sync(), ms + 50); },
-    /* 문제의 음악이 재생되는 동안 배경음을 잠시 멈춘다 */
-    hold(v) { if (this.held === !!v) return; this.held = !!v; this.sync(); }
+    /* 잠깐 멈춤. why 별로 따로 건다 (media: 문제의 음악 재생 중, timer: P Switch 타이머) */
+    hold(v, why = 'media') { if (!!this.holds[why] === !!v) return; this.holds[why] = !!v; this.sync(); }
   };
   window.Sound = Sound;
   window.Bgm = Bgm;
