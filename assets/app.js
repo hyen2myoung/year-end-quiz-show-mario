@@ -1109,9 +1109,8 @@
     const layer = el('div', 'edition-cast');
     layer.setAttribute('aria-hidden', 'true');
     scr.editionMonsters = [];
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     cast.forEach((character, i) => {
-      const source = !reduced && character.animation ? character.animation : character;
+      const source = character.animation || character;
       const scale = Math.min(80 / (source.referenceHeight || character.height), 128 / source.height, 152 / source.width);
       const actor = el('div', 'edition-character');
       actor.dataset.motion = character.motion || 'walk';
@@ -1147,7 +1146,9 @@
   }
   function startCastActivity(s, scr) {
     const monsters = scr.editionMonsters;
-    if (!scr.classList.contains('q-screen') || !monsters || !monsters.length || s.castActivity || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (!scr.classList.contains('q-screen') || !monsters || !monsters.length || s.castActivity) return;
+    /* 시스템의 동작 줄이기 설정과 관계없이 요청된 달리기·처치 연출을 시작한다.
+       시작을 건너뛰면 입장용 visibility:hidden이 풀리지 않아 몬스터가 전부 사라진다. */
     /* 표지와 같은 달리기 판: 주인공은 앞으로 달리고, 적과 풍경이 오른쪽에서 왼쪽으로 흐른다.
        적을 쫓았다가 HOME으로 돌아오는 대신 다음 적을 연달아 밟는다. */
     scr.classList.add('cast-runner');
