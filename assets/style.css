@@ -71,10 +71,6 @@ kbd { display: inline-block; min-width: 1.5em; padding: 0 .3em; margin: 0 .15em;
 #card.on { display: flex; }
 .card-world { display: flex; align-items: center; gap: 24px; font-size: 55px; color: #9aa0d0; letter-spacing: 6px; }
 .card-world img { width: 60px; height: 60px; image-rendering: pixelated; }
-.card-stage { display: flex; align-items: center; gap: 18px; font-size: 44px; color: #ffd23f; letter-spacing: 4px; }
-.card-stage img { width: 48px; height: 48px; image-rendering: pixelated; }
-.card-stage.dusk { color: #ff9a6a; }
-.card-stage.night { color: #9ab4ff; }
 .card-name { font-size: 132px; color: #fff; text-shadow: 0 12px 0 var(--c); letter-spacing: 12px; }
 .card-level { font-size: 77px; color: #fff; letter-spacing: 6px; }
 .card-level em { font-style: normal; color: var(--gold); margin-left: 24px; font-size: 55px; }
@@ -453,13 +449,45 @@ body[data-screen="board"] #dim { opacity: 1; background: rgba(236, 248, 255, .55
 .hard-mode .qpanel { border-color: #8d3342; box-shadow: inset 0 0 0 6px #fff, inset 0 0 0 12px var(--ink), 0 8px 0 #641f2d, 0 12px 28px rgba(255, 82, 28, .2); }
 .hard-mode .qpanel .tab-meta { border-color: #ff9d49; color: #ffe27d; }
 
-/* 분야마다 마리오 세대를 표시하고, 원본 캐릭터를 문제 창 아래에 조용히 둔다. */
-.card-edition { font-size: 33px; color: #bfc8e8; }
-.qpanel .edition-tab { position: absolute; right: 300px; top: -27px; height: 48px; padding: 0 18px;
-  font-size: 22px; line-height: 42px; color: #e2e8ff; background: #1a1832; border: 3px solid #8d94b0; white-space: nowrap; }
+/* 유형별 원본 캐릭터를 문제 창 아래에서 재생한다. */
 .edition-cast { position: absolute; inset: 0; pointer-events: none; }
+.q-screen .edition-cast { visibility: hidden; }
+.q-screen.cast-ready .edition-cast { visibility: visible; }
 .edition-character { position: absolute; bottom: 252px; transform: translateX(-50%); }
+.edition-patrol { animation: editionWalk 14s linear infinite; animation-delay: var(--delay); }
+.edition-body { transform-origin: 50% 100%; }
 .edition-sprite { display: block; image-rendering: pixelated; image-rendering: crisp-edges;
-  filter: drop-shadow(4px 6px 0 rgba(0,0,0,.3)); animation: editionPatrol 16s ease-in-out infinite alternate; animation-delay: var(--delay); }
-@keyframes editionPatrol { from { transform: translateX(-24px); } to { transform: translateX(24px); } }
-@media (prefers-reduced-motion: reduce) { .edition-sprite { animation: none; } }
+  filter: drop-shadow(4px 6px 0 rgba(0,0,0,.3)); }
+.edition-character[data-motion="fly"] .edition-patrol { animation: editionFlight 7s ease-in-out infinite; animation-delay: var(--delay); }
+.edition-character[data-motion="swim"] .edition-patrol { animation: editionSwim 9s linear infinite; animation-delay: var(--delay); }
+.edition-character[data-motion="ghost"] .edition-patrol,
+.edition-character[data-motion="hover"] .edition-patrol { animation: editionHover 6s ease-in-out infinite; animation-delay: var(--delay); }
+.edition-character[data-motion="projectile"] .edition-patrol { animation: editionFlight 5s linear infinite; animation-delay: var(--delay); }
+.edition-character[data-motion="hop"] .edition-patrol { animation: editionHop 2.6s linear infinite; animation-delay: var(--delay); }
+.edition-character[data-motion="boss"] .edition-patrol { animation-duration: 18s; }
+.edition-character[data-motion="walk"] .edition-sprite { animation: editionTurn 14s steps(1) infinite; animation-delay: var(--delay); }
+.edition-character.targeted .edition-patrol { animation: none; }
+.edition-character.hurt .edition-body { animation: editionHurt .5s steps(2) both; }
+.edition-character.defeated .edition-body { animation: editionDefeat .45s ease-in both; }
+.edition-character.respawn .edition-body { animation: editionRespawn .4s ease-out both; }
+/* GIF는 원본 프레임·재생 시간을 유지한다. 아래 곡선은 화면 안 위치 이동과 퇴장만 담당한다. */
+@keyframes editionWalk { 0%, 100% { transform: translateX(22px); } 50% { transform: translateX(-22px); } }
+@keyframes editionTurn { 0%, 100% { transform: scaleX(1); } 50% { transform: scaleX(-1); } }
+@keyframes editionFlight { 0%, 100% { transform: translate(20px,-24px); } 50% { transform: translate(-20px,-42px); } }
+@keyframes editionSwim { 0%, 100% { transform: translate(22px,-14px); } 25% { transform: translate(0,-24px); } 50% { transform: translate(-22px,-14px); } 75% { transform: translate(0,-8px); } }
+@keyframes editionHover { 0%, 100% { transform: translate(10px,-16px); } 50% { transform: translate(-10px,-34px); } }
+@keyframes editionHop { 0%, 35%, 100% { transform: translateY(0); } 65% { transform: translateY(-44px); } }
+@keyframes editionHurt { 0%, 100% { opacity: 1; } 30%, 70% { opacity: .35; } }
+@keyframes editionDefeat { 0% { opacity: 1; transform: translateY(0); } 100% { opacity: 0; transform: translateY(56px); } }
+@keyframes editionRespawn { from { opacity: 0; } to { opacity: 1; } }
+.cast-runner .edition-patrol { animation: none !important; transform: none !important; }
+.edition-sprite { transform: scaleX(var(--monster-facing, 1)); }
+.cast-runner .edition-sprite { animation: none !important; transform: scaleX(var(--monster-facing, 1)) !important; }
+.cast-runner .edition-character.runner-defeated .edition-body { animation: runnerStomp .38s steps(3) both; }
+@keyframes runnerStomp {
+  0% { transform: scale(1); opacity: 1; }
+  25%, 65% { transform: scale(1.15, .16); opacity: 1; }
+  100% { transform: scale(1.15, .1); opacity: 0; }
+}
+#actors .cast-clock { left: 1690px !important; top: 560px !important; }
+@media (prefers-reduced-motion: reduce) { .edition-patrol, .edition-sprite { animation: none !important; } }

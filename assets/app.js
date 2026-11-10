@@ -34,7 +34,6 @@
   const SLOTS = Math.max(1, Math.min(4, SET.slotsPerCell || 4));
   const CATS = SET.categories, LEVELS = SET.levels;
   const STAGES = ['day', 'water', 'sky', 'cave'];
-  const STAGE_NAME = { day: '평원', water: '물속', sky: '하늘', cave: '지하', night: '밤 마을', sunset: '노을 언덕', ice: '얼음 동굴' };
   const idOf = (cat, level, n) => `${cat}_${level}_${n}`;
   const parseId = (id) => { const [cat, level, no] = id.split('_'); return { cat, level, no: Number(no) }; };
   const hasContent = (q) => !!(q && (q.q || q.q_img || q.q_audio));
@@ -50,14 +49,6 @@
   const TODS = ['day', 'dusk', 'night'];
   const TOD_NAME = { day: '낮', dusk: '노을', night: '밤' };
   const todOfLevel = (li) => { const l = LEVELS[li] || {}; return TOD_NAME[l.time] ? l.time : TODS[Math.min(li, TODS.length - 1)]; };
-  /* 입장 카드에 나오는 스테이지 이름 (월드 × 시간대) */
-  const TOD_STAGE = {
-    day: { day: '낮의 평원', dusk: '노을 평원', night: '밤의 평원' },
-    water: { day: '맑은 바다', dusk: '노을 바다', night: '깊은 밤바다' },
-    sky: { day: '맑은 하늘', dusk: '노을 하늘', night: '별빛 밤하늘' },
-    cave: { day: '얼음 동굴', dusk: '붉은 동굴', night: '깊은 동굴' }
-  };
-  const stageName = (id) => { const st = stageOf(parseId(id).cat), td = todOf(id); return (TOD_STAGE[st] || {})[td] || `${TOD_NAME[td]} ${STAGE_NAME[st] || ''}`; };
   const todOf = (id) => todOfLevel(levelIndex(parseId(id).level));
   const sideStage = (id) => World.side(stageOf(parseId(id).cat), { tint: catHex(catOf(parseId(id).cat)), tod: todOf(id) });
   /* 문제 화면 배경음: 분야의 bgm 에서 난이도 순서대로 */
@@ -132,6 +123,7 @@
   const heroes = {};
   let busy = false;
   function newScene() {
+    if (scene.castActivity) scene.castActivity.stop();
     scene.timers.forEach((t) => { clearTimeout(t); clearInterval(t); });
     scene = { id: scene.id + 1, timers: [] };
     Object.values(heroes).forEach((f) => { f.stop(); f.carry(null); f.pose('idle'); f.el.style.clipPath = ''; clearTimeout(f.sayTimer); f.bubble.classList.remove('show'); });
@@ -251,8 +243,6 @@
     const left = readyIds.filter((x) => !state.used[x] && x !== id).length;
     cardEl.innerHTML = `
       <div class="card-world"><img src="${SP.icon(c.icon || 'book', '#ffffff')}" alt=""><span>WORLD ${catIndex(p.cat) + 1}-${levelIndex(p.level) + 1}</span></div>
-      <div class="card-stage ${todOf(id)}"><img src="${SP.icon('flag', { day: '#ffd23f', dusk: '#ff8a5a', night: '#9ab4ff' }[todOf(id)])}" alt="">${esc(stageName(id))}</div>
-      ${editionOf(p.cat) ? `<div class="card-edition">${esc(editionOf(p.cat).name)}</div>` : ''}
       <div class="card-name" style="--c:${c.color || '#2f7ae8'}">${esc(p.cat)}</div>
       <div class="card-level">${esc(p.level)} - ${p.no} <em>${starsOf(p.level)}</em></div>
       <div class="card-lives"><img src="${portrait('gureum')}" alt=""><img src="${portrait('noeul')}" alt=""><b>× ${pad2(left)}</b><small>남은 문제</small></div>`;
@@ -1104,12 +1094,13 @@
      ========================================================= */
   const Q_PANEL = { x: 60, y: 48, w: 1800, h: 492 };
   const HOME = { gureum: 330, noeul: 1590 };
+  const RUNNER_HOME = { gureum: 820, noeul: 1060 };
   const EXIT_X = 110; /* 스테이지 왼쪽, 캐릭터가 올라오는 파이프 */
   let clockEl = null;
   let instantPanel = false;
 
-  /* 각 세대의 원본 캐릭터. 문제 창 아래 정해진 자리에서만 천천히 움직인다.
-     마스코트와 충돌하지 않고, 처치·동전·소리 같은 자동 이벤트도 만들지 않는다. */
+  /* 원작 연속 프레임은 그대로 재생한다. CSS는 위치 이동만 맡고 원본 그림을 흔들거나 변형하지 않는다.
+     몸 크기는 집중 모드의 구름이·노을이(약 80px)에 맞추며, 프레임 여백은 원래 비율을 유지한다. */
   function addEditionCast(scr, id) {
     const p = parseId(id), edition = editionOf(p.cat);
     if (!edition) return;
@@ -1117,21 +1108,214 @@
     const cast = edition.cast[levelIndex(p.level)] || edition.cast[0] || [];
     const layer = el('div', 'edition-cast');
     layer.setAttribute('aria-hidden', 'true');
+    scr.editionMonsters = [];
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     cast.forEach((character, i) => {
-      const scale = Math.max(1, Math.min(4, Math.floor(144 / character.height), Math.floor(160 / character.width)));
+      const source = !reduced && character.animation ? character.animation : character;
+      const scale = Math.min(80 / (source.referenceHeight || character.height), 128 / source.height, 152 / source.width);
       const actor = el('div', 'edition-character');
-      actor.style.cssText = `left:${710 + i * 250}px;--delay:${-i * 4}s`;
+      actor.dataset.motion = character.motion || 'walk';
+      actor.dataset.name = character.name;
+      actor.dataset.originalFrames = String(source.frames || 1);
+      actor.style.cssText = `left:${2080 + i * 440}px;--delay:${-i * 2.1}s`;
+      const patrol = el('div', 'edition-patrol');
+      const body = el('div', 'edition-body');
       const image = document.createElement('img');
       image.className = 'edition-sprite';
-      image.src = character.path;
+      /* 오른쪽을 보는 원본만 반전해, 들어오는 적이 항상 왼쪽의 두 주인공을 보게 한다. */
+      image.style.setProperty('--monster-facing', source.facing === 'right' || (!source.facing && character.facing === 'right') ? -1 : 1);
+      image.src = source.path;
       image.alt = '';
-      image.width = character.width * scale;
-      image.height = character.height * scale;
+      image.width = Math.round(source.width * scale);
+      image.height = Math.round(source.height * scale);
       image.onerror = () => actor.remove();
-      actor.appendChild(image);
+      body.appendChild(image);
+      patrol.appendChild(body);
+      actor.appendChild(patrol);
       layer.appendChild(actor);
+      scr.editionMonsters.push({ actor, patrol, body, image, claimed: false, dead: false, hits: 0, boss: !!character.boss });
     });
     scr.prepend(layer);
+  }
+
+  /* 배경 전투는 UI 조작과 별도로 움직인다. hold/stop이 자동 동작의 소유권을 즉시 회수하므로
+     타이머·벽돌·정답·대화창이 구름이와 노을이를 필요로 하면 전투가 끼어들지 않는다. */
+  function holdCastActivity(ms = 1600) {
+    const release = scene.castActivity ? scene.castActivity.hold() : () => {};
+    if (Number.isFinite(ms)) scene.timers.push(setTimeout(release, ms));
+    return release;
+  }
+  function startCastActivity(s, scr) {
+    const monsters = scr.editionMonsters;
+    if (!scr.classList.contains('q-screen') || !monsters || !monsters.length || s.castActivity || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    /* 표지와 같은 달리기 판: 주인공은 앞으로 달리고, 적과 풍경이 오른쪽에서 왼쪽으로 흐른다.
+       적을 쫓았다가 HOME으로 돌아오는 대신 다음 적을 연달아 밟는다. */
+    scr.classList.add('cast-runner');
+    const runners = Object.values(heroes).map((f) => ({ f, anchor: RUNNER_HOME[f.kind], owned: false, moveId: 0, jump: null }));
+    const SPEED = 300, JUMP_MS = 620, GAP = 440;
+    const HERO_HALF_WIDTH = 40, CLEARANCE = 18, EDGE_GAP = 8, DODGE_RISE = .12;
+    let holds = 0, stopped = false, last = 0, time = 0, serial = monsters.length, ready = false;
+    const readyAfter = performance.now() + (scr.classList.contains('instant') ? 0 : 600);
+    const valid = () => !stopped && alive(s) && scr.isConnected;
+    const resetCourse = () => {
+      ready = false;
+      scr.classList.remove('cast-ready');
+      scr.dataset.castPhase = 'joining';
+      monsters.forEach((m, i) => {
+        m.x = 2080 + i * GAP; m.killer = runners[i % runners.length]; m.dead = false; m.deadAge = 0;
+        m.actor.style.left = `${m.x}px`;
+        m.actor.classList.remove('runner-defeated');
+      });
+    };
+    resetCourse();
+    World.speed(0);
+    const cancel = () => {
+      runners.forEach((r) => {
+        if (r.owned) { r.f.stop(); r.f.y = FLOOR; r.f.sync(); park(r.f); }
+        r.owned = false; r.jump = null;
+      });
+      resetCourse();
+      World.speed(0);
+    };
+    s.castActivity = {
+      hold() {
+        holds++; cancel();
+        let released = false;
+        return () => { if (!released) { released = true; holds = Math.max(0, holds - 1); } };
+      },
+      stop() { stopped = true; cancel(); }
+    };
+    function pinClock() {
+      if (!clockEl || !clockEl.isConnected) return;
+      /* 둘 다 계속 달릴 수 있게 시계를 캐릭터 몸에서 분리해 문제 창 아래 오른쪽에 고정한다. */
+      if (clockEl.parentElement !== actors) { actors.appendChild(clockEl); clockEl.classList.add('cast-clock'); }
+    }
+    function recycle(m) {
+      m.x = Math.max(1920, ...monsters.filter((n) => n !== m).map((n) => n.x)) + GAP;
+      m.killer = runners[serial++ % runners.length];
+      m.dead = false; m.deadAge = 0;
+      m.actor.classList.remove('runner-defeated');
+      scr.dataset.respawns = String(Number(scr.dataset.respawns || 0) + 1);
+    }
+    function defeat(m, r) {
+      m.dead = true; m.deadAge = 0;
+      m.actor.classList.add('runner-defeated');
+      scr.dataset.defeats = String(Number(scr.dataset.defeats || 0) + 1);
+      scr.dataset.lastDefeated = m.actor.dataset.name;
+      if (/goomba/i.test(m.actor.dataset.name)) scr.dataset.goombaDefeats = String(Number(scr.dataset.goombaDefeats || 0) + 1);
+      r.f.el.dataset.castDefeats = String(Number(r.f.el.dataset.castDefeats || 0) + 1);
+      /* 밟힌 순간 납작 + 작은 별 + 100 팻말. 소리와 실제 점수 증가는 없다. */
+      Fx.sparks(m.x, m.foot - 18, 8, '#fff2bd');
+      popScore(m.x, m.foot - 105, 100);
+    }
+    const frame = (now) => {
+      if (!valid()) return;
+      requestAnimationFrame(frame);
+      const dt = Math.min(.04, (now - (last || now)) / 1000); last = now;
+      pinClock();
+      if (holds || busy || document.querySelector('.modal-back, .panel')) return;
+      time += dt;
+      runners.forEach((r) => {
+        const f = r.f;
+        if (r.owned && f.moveId !== r.moveId) { r.owned = false; r.jump = null; if (ready) resetCourse(); }
+        if (!r.owned && f.parked) {
+          f.stop(); r.moveId = f.moveId; r.owned = true; f.y = FLOOR; unpark(f);
+        }
+        if (!r.owned) return;
+        const dx = r.anchor - f.x;
+        f.x += Math.sign(dx) * Math.min(Math.abs(dx), 720 * dt);
+        f.facing(dx < -3 ? 1 : -1);
+        if (!r.jump) { f.y = FLOOR; f.pose('run'); }
+        f.sync();
+      });
+      /* 양쪽의 파이프 입장·이동·축소가 끝나고 달리는 위치가 잡힌 다음에만 적을 보낸다. */
+      if (!ready) {
+        if (now < readyAfter || !runners.every((r) => r.owned && Math.abs(r.f.x - r.anchor) <= 3 && r.f.y === FLOOR)) return;
+        ready = true;
+        scr.classList.add('cast-ready');
+        scr.dataset.castPhase = 'running';
+      }
+      World.speed(26);
+      monsters.forEach((m, i) => {
+        if (m.dead) {
+          m.deadAge += dt;
+          if (m.deadAge >= .38) recycle(m);
+        } else m.x -= SPEED * dt;
+        const motion = m.actor.dataset.motion;
+        const lift = ['fly', 'projectile'].includes(motion) ? 24 : ['hover', 'ghost'].includes(motion) ? 18 : motion === 'swim' ? 10 : 0;
+        m.foot = FLOOR - lift + (lift ? Math.sin(time * 2 + i) * 4 : 0);
+        m.top = m.foot - m.image.height;
+        m.actor.style.left = `${m.x}px`;
+        m.actor.style.bottom = `${1080 - m.foot}px`;
+        if (m.x < -140) recycle(m);
+      });
+      runners.forEach((r) => {
+        const f = r.f;
+        if (!r.owned || Math.abs(f.x - r.anchor) > 3) return;
+        if (!r.jump) {
+          const next = monsters.filter((m) => !m.dead && m.x >= f.x - 8).sort((a, b) => a.x - b.x)[0];
+          if (next) {
+            if (next.killer !== r) {
+              /* 적 바로 앞에서 빠르게 도약하고, 몸·꼬리와 적이 완전히 떨어지면 바로 착지한다. */
+              const span = next.image.width / 2 + HERO_HALF_WIDTH + EDGE_GAP;
+              if (next.x - f.x <= span + SPEED * DODGE_RISE + 8) {
+                const height = Math.min(180, Math.max(110, FLOOR - next.top + CLEARANCE));
+                r.jump = { kind: 'dodge', stage: 'rise', age: 0, height, target: next };
+              }
+            } else {
+              const height = Math.min(180, Math.max(110, FLOOR - next.top + 26));
+              const phase = 1 - Math.asin(Math.min(.99, (FLOOR - next.top) / height)) / Math.PI;
+              if (next.x - f.x <= SPEED * (JUMP_MS / 1000) * phase + 10) {
+                r.jump = { kind: 'stomp', age: 0, height, target: next, kill: true, bounced: false };
+              }
+            }
+          }
+        }
+        const jump = r.jump;
+        if (!jump) return;
+        if (jump.kind === 'dodge') {
+          jump.age += dt;
+          const m = jump.target;
+          if (jump.stage === 'rise') {
+            const p = Math.min(1, jump.age / DODGE_RISE);
+            f.y = FLOOR - Math.sin(p * Math.PI / 2) * jump.height;
+            if (p >= 1) { jump.stage = 'over'; jump.age = 0; }
+          } else if (jump.stage === 'over') {
+            f.y = FLOOR - jump.height;
+            if (m.dead || m.x + m.image.width / 2 < f.x - HERO_HALF_WIDTH - EDGE_GAP) {
+              jump.stage = 'fall'; jump.age = 0;
+            }
+          } else {
+            const p = Math.min(1, jump.age / DODGE_RISE);
+            f.y = FLOOR - (1 - p * p * (3 - 2 * p)) * jump.height;
+            if (p >= 1) { r.jump = null; f.y = FLOOR; }
+          }
+          f.pose(r.jump ? 'jump' : 'run'); f.sync();
+          return;
+        }
+        if (jump.rebound) {
+          jump.rebound.age += dt;
+          const bounce = Math.min(1, jump.rebound.age / .36);
+          f.y = jump.rebound.from + (FLOOR - jump.rebound.from) * bounce - Math.sin(bounce * Math.PI) * 72;
+          f.pose('jump');
+          if (bounce >= 1) { r.jump = null; f.y = FLOOR; f.pose('run'); }
+          f.sync();
+          return;
+        }
+        jump.age += dt;
+        const phase = Math.min(1, jump.age / (JUMP_MS / 1000));
+        f.y = FLOOR - Math.sin(phase * Math.PI) * jump.height;
+        f.pose('jump');
+        const m = jump.target;
+        if (jump.kill && !jump.bounced && !m.dead && phase > .5 && Math.abs(m.x - f.x) <= 48 && f.y >= m.top - 18 && f.y <= m.top + 24) {
+          defeat(m, r); jump.bounced = true;
+          jump.rebound = { age: 0, from: f.y };
+        }
+        if (phase >= 1) { r.jump = null; f.y = FLOOR; f.pose('run'); }
+        f.sync();
+      });
+    };
+    requestAnimationFrame(frame);
   }
 
   /* 상 난이도: 원래 월드 위에 불빛을 얹는다. 문제 창 아래만 그려 집중 모드에서도 불이 보인다.
@@ -1200,8 +1384,7 @@
     const head = kind === 'answer'
       ? `<div class="tab tab-answer"><img src="${SP.icon('bulb', '#ffffff')}" alt="">정답!</div><div class="tab-meta">${esc(p.cat)} ${esc(p.level)}-${p.no}</div>`
       : `<div class="tab" style="--c:${c.color || '#2f7ae8'}"><img src="${SP.icon(c.icon || 'book', '#ffffff')}" alt="">${esc(p.cat)}<span class="tab-lv">${esc(p.level)}-${p.no}</span></div><div class="tab-meta">${starsOf(p.level)}</div>`;
-    const edition = editionOf(p.cat);
-    return `<div class="qpanel pwin ${kind}${instantPanel ? '' : ' opening'}" style="left:${Q_PANEL.x}px;top:${Q_PANEL.y}px;width:${Q_PANEL.w}px;height:${Q_PANEL.h}px">${head}${edition ? `<div class="edition-tab">${esc(edition.name)}</div>` : ''}<div class="q-body"></div></div>`;
+    return `<div class="qpanel pwin ${kind}${instantPanel ? '' : ' opening'}" style="left:${Q_PANEL.x}px;top:${Q_PANEL.y}px;width:${Q_PANEL.w}px;height:${Q_PANEL.h}px">${head}<div class="q-body"></div></div>`;
   }
   function fillBody(body, text, img, audio, posKey, s, hasMediaSize) {
     let textNode = null;
@@ -1280,7 +1463,7 @@
     gureum.scale(SIDE_S); noeul.scale(SIDE_S);
     Clock.attach(s, tb);
     if (instant) {
-      gureum.place(HOME.gureum, FLOOR); noeul.place(HOME.noeul, FLOOR);
+      gureum.place(RUNNER_HOME.gureum, FLOOR); noeul.place(RUNNER_HOME.noeul, FLOOR);
       gureum.facing(-1); noeul.facing(1);
       park(gureum, noeul);
       focusMode(s, scr, true);
@@ -1297,8 +1480,10 @@
         if (!(await pipeRise(s, gureum, null, cover, EXIT_X, top))) return;
         Sound.play('jump', { ambient: true });
         gureum.facing(-1);
-        gureum.arc(HOME.gureum, FLOOR, 90, 460, 'idle').then((ok) => {
-          if (ok && alive(s)) { park(gureum); gureum.say(pick(['문제 나왔다!', '다들 준비됐죠?', '잘 읽어 봐요!']), 1800); }
+        gureum.arc(HOME.gureum, FLOOR, 90, 460, 'idle').then(async (ok) => {
+          if (!ok || !alive(s)) return;
+          await gureum.run(RUNNER_HOME.gureum, { speed: 1000 });
+          if (alive(s)) { park(gureum); gureum.say(pick(['문제 나왔다!', '다들 준비됐죠?', '잘 읽어 봐요!']), 1800); }
         });
         await later(s, 120);
         if (!(await pipeRise(s, noeul, null, cover, EXIT_X, top))) return;
@@ -1306,7 +1491,7 @@
         noeul.facing(-1);
         await noeul.arc(EXIT_X + 160, FLOOR, 90, 460, 'run');
         if (!alive(s)) return;
-        await noeul.run(HOME.noeul, { speed: 1500 });
+        await noeul.run(RUNNER_HOME.noeul, { speed: 1500 });
         if (!alive(s)) return;
         noeul.facing(1);
         park(noeul);
@@ -1333,6 +1518,7 @@
       f.scale(FOCUS_S);
     });
     if (clockEl) clockEl.style.top = `${clockTop(heroes.noeul)}px`;
+    startCastActivity(s, scr);
   }
 
   function ensureClock() {
@@ -1422,6 +1608,7 @@
   }
   /* 벽돌 치기: 구름이가 밑으로 달려가 머리로 친다 */
   function headbutt(s, b, then) {
+    holdCastActivity(1800);
     const r = rectOf(b);
     const { gureum } = heroes;
     unpark(gureum);
@@ -1454,6 +1641,7 @@
   function startTimer(s, sec, block) {
     const t = state.timer;
     if (!t || !(sec > 0)) return;
+    holdCastActivity(1500);
     Object.assign(t, { status: 'running', duration: sec, endsAt: Date.now() + sec * 1000, remaining: sec * 1000 });
     Clock.lastSec = null;
     save();
@@ -1525,6 +1713,7 @@
     else startTimer(s, t.duration || PRESETS[Math.floor(PRESETS.length / 2)]);
   }
   function timeUp(s) {
+    holdCastActivity(3000);
     const t = state.timer;
     t.status = 'done';
     t.remaining = 0;
@@ -1545,11 +1734,13 @@
 
   async function onBackFromQuestion(id) {
     if (busy) return;
+    const releaseCast = holdCastActivity(Infinity);
     const choice = await dialog('지도로 돌아갈까요?', '잘못 고른 문제라면 안 푼 문제로 되돌릴 수 있어요.', [
       { label: '푼 문제로 표시하고 돌아가기', value: 'used' },
       { label: '안 푼 문제로 되돌리기', value: 'free' },
       { label: '계속 보기', value: null }
     ]);
+    releaseCast();
     if (!choice || state.current !== id) return;
     if (choice === 'free') delete state.used[id];
     save();
@@ -1563,6 +1754,7 @@
      ========================================================= */
   async function onReveal(id) {
     if (busy || state.screen !== 'question') return;
+    holdCastActivity(Infinity);
     busy = true;
     const t = state.timer;
     if (t && t.status === 'running') { t.remaining = Math.max(0, t.endsAt - Date.now()); t.status = 'stopped'; save(); }
@@ -1631,7 +1823,6 @@
     instantPanel = instant;
     scr.innerHTML = panelHTML(id, 'answer');
     addHardMode(s, scr, id);
-    addEditionCast(scr, id);
     fillBody($('.q-body', scr), q.a, q.a_img, q.a_audio, `${id}:a`, s, q.a_audio ? 77 : 88);
     const next = el('button', 'gbtn right', `지도로 ▶ ${key('Enter')}`);
     next.id = 'nextBtn';
@@ -1685,10 +1876,11 @@
      운영 패널
      ========================================================= */
   let panelEl = null;
-  function closePanel() { if (panelEl) { panelEl.remove(); panelEl = null; } }
+  function closePanel() { if (panelEl) { if (panelEl.releaseCast) panelEl.releaseCast(); panelEl.remove(); panelEl = null; } }
   function openPanel() {
     if (panelEl) return closePanel();
     panelEl = el('div', 'panel pwin');
+    panelEl.releaseCast = holdCastActivity(Infinity);
     panelEl.innerHTML = `
       <div class="panel-head"><h2>운영 패널</h2><button class="pbtn" id="panelClose">닫기 ${key('Esc')}</button></div>
       <div class="panel-stats">

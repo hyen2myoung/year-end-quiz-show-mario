@@ -16,7 +16,7 @@ window.QUIZ_SETTINGS = {
      stage: 문제 화면 배경(월드 테마). 난이도마다 같은 월드가 낮·노을·밤으로 바뀝니다 (levels 의 time). day(눈 덮인 평원), water(물속), sky(하늘), cave(지하 얼음 동굴)
             예전 테마 night(밤 마을), sunset(노을 언덕), ice(얼음 동굴)도 쓸 수 있습니다.
      color: 분야 간판 색.
-     edition: data/editions.js 의 마리오 버전. 문제·정답의 캐릭터와 버전 표시를 정합니다.
+     edition: data/editions.js 의 마리오 버전. 문제 화면의 몬스터 세대를 정합니다.
      bgm  : 같은 버전의 문제 화면 배경음. 아래 levels 순서(하, 중, 상)대로 한 곡씩. 비우면("") 조용합니다. */
   categories: [
     { name: "상식", icon: "book", stage: "day", color: "#2f7ae8", edition: "smb1",

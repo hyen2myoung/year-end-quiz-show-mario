@@ -1,0 +1,521 @@
+[
+  {
+    "edition": "smb1",
+    "name": "Little Goomba",
+    "path": "assets/monsters/original/smb1/SMB_Goomba_Sprite.gif",
+    "width": 16,
+    "height": 16,
+    "frames": 2,
+    "durationsMs": [
+      300,
+      300
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB_Goomba_Sprite.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/4/4e/SMB_Goomba_Sprite.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb1",
+    "name": "Koopa Troopa (green)",
+    "path": "assets/monsters/original/smb1/Green_Koopa_Troopa_SMB.gif",
+    "width": 16,
+    "height": 24,
+    "frames": 2,
+    "durationsMs": [
+      150,
+      150
+    ],
+    "filePage": "https://www.mariowiki.com/File:Green_Koopa_Troopa_SMB.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/a/aa/Green_Koopa_Troopa_SMB.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb1",
+    "name": "Koopa Troopa (red)",
+    "path": "assets/monsters/original/smb1/SMB_Red_Koopa_Troopa.gif",
+    "width": 16,
+    "height": 24,
+    "frames": 2,
+    "durationsMs": [
+      150,
+      150
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB_Red_Koopa_Troopa.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/5/59/SMB_Red_Koopa_Troopa.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb1",
+    "name": "Koopa Paratroopa (green)",
+    "path": "assets/monsters/original/smb1/SMB_Green_Koopa_Paratroopa_Sprite.gif",
+    "width": 16,
+    "height": 24,
+    "frames": 2,
+    "durationsMs": [
+      200,
+      200
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB_Green_Koopa_Paratroopa_Sprite.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/6/66/SMB_Green_Koopa_Paratroopa_Sprite.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb1",
+    "name": "Hammer Brother",
+    "path": "assets/monsters/original/smb1/SMB_Hammer_Bro_Throwing_Hammer_Sprite.gif",
+    "width": 28,
+    "height": 40,
+    "frames": 5,
+    "durationsMs": [
+      150,
+      150,
+      150,
+      150,
+      150
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB_Hammer_Bro_Throwing_Hammer_Sprite.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/c/c0/SMB_Hammer_Bro_Throwing_Hammer_Sprite.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb1",
+    "name": "Bowser",
+    "path": "assets/monsters/original/smb1/SMB_Bowser_Walking_Sprite.gif",
+    "width": 32,
+    "height": 32,
+    "frames": 2,
+    "durationsMs": [
+      500,
+      500
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB_Bowser_Walking_Sprite.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/3/31/SMB_Bowser_Walking_Sprite.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb3",
+    "name": "Cheep-Cheep",
+    "path": "assets/monsters/original/smb3/SMB3_Baby_Cheep_swim_land.gif",
+    "width": 16,
+    "height": 16,
+    "frames": 2,
+    "durationsMs": [
+      70,
+      70
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB3_Baby_Cheep_swim_land.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/0/00/SMB3_Baby_Cheep_swim_land.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb3",
+    "name": "Green Cheep-Cheep",
+    "path": "assets/monsters/original/smb3/SMB3_Cheep-Cheep_green_swim_land.gif",
+    "width": 16,
+    "height": 16,
+    "frames": 2,
+    "durationsMs": [
+      140,
+      130
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB3_Cheep-Cheep_green_swim_land.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/d/d0/SMB3_Cheep-Cheep_green_swim_land.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb3",
+    "name": "Green Koopa Troopa",
+    "path": "assets/monsters/original/smb3/Green_Koopa_SMB3.gif",
+    "width": 16,
+    "height": 33,
+    "frames": 2,
+    "durationsMs": [
+      140,
+      130
+    ],
+    "filePage": "https://www.mariowiki.com/File:Green_Koopa_SMB3.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/3/35/Green_Koopa_SMB3.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb3",
+    "name": "Spiny Cheep-Cheep",
+    "path": "assets/monsters/original/smb3/SMB3_Spiny_Cheep-Cheep_swim_land.gif",
+    "width": 16,
+    "height": 16,
+    "frames": 2,
+    "durationsMs": [
+      140,
+      130
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB3_Spiny_Cheep-Cheep_swim_land.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/5/53/SMB3_Spiny_Cheep-Cheep_swim_land.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb3",
+    "name": "Green Koopa Paratroopa",
+    "path": "assets/monsters/original/smb3/SMB3_KoopaParatroopaGreenL.gif",
+    "width": 16,
+    "height": 33,
+    "frames": 6,
+    "durationsMs": [
+      70,
+      50,
+      20,
+      70,
+      50,
+      20
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB3_KoopaParatroopaGreenL.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/e/e3/SMB3_KoopaParatroopaGreenL.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb3",
+    "name": "\"Boo\" Diddly",
+    "path": "assets/monsters/original/smb3/SMB3_'Boo'_Diddly_fort.gif",
+    "width": 16,
+    "height": 16,
+    "frames": 2,
+    "durationsMs": [
+      1000,
+      1000
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB3_%27Boo%27_Diddly_fort.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/3/36/SMB3_%27Boo%27_Diddly_fort.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb3",
+    "name": "Boom Boom",
+    "path": "assets/monsters/original/smb3/SMB3_Boom_Boom_fort_light_panic.gif",
+    "width": 32,
+    "height": 32,
+    "frames": 6,
+    "durationsMs": [
+      40,
+      40,
+      40,
+      40,
+      40,
+      40
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB3_Boom_Boom_fort_light_panic.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/5/59/SMB3_Boom_Boom_fort_light_panic.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb3",
+    "name": "Bowser",
+    "path": "assets/monsters/original/smb3/SMB3_Bowser_breath.gif",
+    "width": 32,
+    "height": 40,
+    "frames": 5,
+    "durationsMs": [
+      140,
+      130,
+      140,
+      130,
+      270
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB3_Bowser_breath.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/b/b5/SMB3_Bowser_breath.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smb3",
+    "name": "Ludwig von Koopa",
+    "path": "assets/monsters/original/smb3/SMB3_Ludwig_wandless_walk.gif",
+    "width": 24,
+    "height": 32,
+    "frames": 2,
+    "durationsMs": [
+      140,
+      130
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMB3_Ludwig_wandless_walk.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/7/7b/SMB3_Ludwig_wandless_walk.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "nsmb",
+    "name": "Goomba",
+    "path": "assets/monsters/original/nsmb/NSMBDS_Goomba_Walking_Sprite.gif",
+    "width": 18,
+    "height": 19,
+    "frames": 8,
+    "durationsMs": [
+      100,
+      100,
+      100,
+      100,
+      100,
+      100,
+      100,
+      100
+    ],
+    "filePage": "https://www.mariowiki.com/File:NSMBDS_Goomba_Walking_Sprite.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/1/11/NSMBDS_Goomba_Walking_Sprite.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "nsmb",
+    "name": "Boo",
+    "path": "assets/monsters/original/nsmb/NSMBDS_Boo_Sprite.gif",
+    "width": 24,
+    "height": 20,
+    "frames": 4,
+    "durationsMs": [
+      130,
+      130,
+      130,
+      130
+    ],
+    "filePage": "https://www.mariowiki.com/File:NSMBDS_Boo_Sprite.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/4/4a/NSMBDS_Boo_Sprite.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smw",
+    "name": "Goomba",
+    "path": "assets/monsters/original/smw/SMW_Goomba_Sprite.gif",
+    "width": 16,
+    "height": 16,
+    "frames": 2,
+    "durationsMs": [
+      160,
+      160
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMW_Goomba_Sprite.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/e/e0/SMW_Goomba_Sprite.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smw",
+    "name": "Koopa (Green)",
+    "path": "assets/monsters/original/smw/KoopaGreenL.gif",
+    "width": 16,
+    "height": 27,
+    "frames": 2,
+    "durationsMs": [
+      160,
+      160
+    ],
+    "filePage": "https://www.mariowiki.com/File:KoopaGreenL.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/e/e5/KoopaGreenL.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smw",
+    "name": "Monty Mole",
+    "path": "assets/monsters/original/smw/MontyMoleL.gif",
+    "width": 16,
+    "height": 16,
+    "frames": 2,
+    "durationsMs": [
+      80,
+      80
+    ],
+    "filePage": "https://www.mariowiki.com/File:MontyMoleL.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/d/d3/MontyMoleL.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smw",
+    "name": "Dry Bones",
+    "path": "assets/monsters/original/smw/DryBonesL.gif",
+    "width": 24,
+    "height": 32,
+    "frames": 2,
+    "durationsMs": [
+      160,
+      160
+    ],
+    "filePage": "https://www.mariowiki.com/File:DryBonesL.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/8/8b/DryBonesL.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smw",
+    "name": "Magikoopa",
+    "path": "assets/monsters/original/smw/magikoopa-cast.webp",
+    "width": 30,
+    "height": 33,
+    "frames": 18,
+    "durationsMs": [
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      170,
+      880
+    ],
+    "filePage": "https://www.mariowiki.com/File:Kamekwand.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/2/2b/Kamekwand.gif",
+    "method": "Original GIF cropped to the fixed character-and-wand region (70,0,100,33); no resampling, original RGBA poses, order and frame durations retained. Wide projectile travel region omitted to keep body size equal to mascots.",
+    "originalDownloadPath": "assets/monsters/original/smw/Kamekwand.gif"
+  },
+  {
+    "edition": "smw",
+    "name": "Boo Buddy",
+    "path": "assets/monsters/original/smw/Boo_buddy.gif",
+    "width": 16,
+    "height": 16,
+    "frames": 2,
+    "durationsMs": [
+      280,
+      280
+    ],
+    "filePage": "https://www.mariowiki.com/File:Boo_buddy.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/e/eb/Boo_buddy.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smw",
+    "name": "Iggy Koopa",
+    "path": "assets/monsters/original/smw/SMW_IggyWalking.gif",
+    "width": 25,
+    "height": 30,
+    "frames": 16,
+    "durationsMs": [
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40,
+      40
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMW_IggyWalking.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/a/af/SMW_IggyWalking.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smw",
+    "name": "Bowser",
+    "path": "assets/monsters/original/smw/SMW-Bowser_in_Koopa_Clown_Car.gif",
+    "width": 64,
+    "height": 96,
+    "frames": 4,
+    "durationsMs": [
+      10,
+      10,
+      10,
+      10
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMW-Bowser_in_Koopa_Clown_Car.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/b/b7/SMW-Bowser_in_Koopa_Clown_Car.gif",
+    "method": "Unmodified original-game sprite GIF; original frames and frame durations retained."
+  },
+  {
+    "edition": "smw",
+    "name": "Ludwig von Koopa",
+    "path": "assets/monsters/original/smw/SMW_Ludwig_spin.gif",
+    "width": 20,
+    "height": 18,
+    "frames": 4,
+    "durationsMs": [
+      70,
+      70,
+      70,
+      70
+    ],
+    "filePage": "https://www.mariowiki.com/File:SMW_Ludwig_spin.gif",
+    "downloadUrl": "https://mario.wiki.gallery/images/f/f9/SMW_Ludwig_spin.gif",
+    "method": "Unmodified original-game Ludwig shell-spin animation; original frames and durations retained. Shell form is displayed at the same target height as other monsters."
+  },
+  {
+    "edition": "nsmb",
+    "name": "Paragoomba",
+    "path": "assets/monsters/original/nsmb/paragoomba.webp",
+    "width": 35,
+    "height": 29,
+    "frames": 11,
+    "durationsMs": [
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90
+    ],
+    "filePage": "https://www.mariouniverse.com/sprites-ds-nsmb/",
+    "downloadUrl": "https://www.mariouniverse.com/wp-content/img/sprites/ds/nsmb/goomba.png",
+    "method": "Native poses extracted from the ripped sprite sheet in listed order, without resampling; sheet background removed. Playback interval 90 ms is an approximation, not extracted engine timing."
+  },
+  {
+    "edition": "nsmb",
+    "name": "Koopa Paratroopa (Green)",
+    "path": "assets/monsters/original/nsmb/koopa-paratroopa-green.webp",
+    "width": 32,
+    "height": 32,
+    "frames": 11,
+    "durationsMs": [
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90
+    ],
+    "filePage": "https://www.mariouniverse.com/sprites-ds-nsmb/",
+    "downloadUrl": "https://www.mariouniverse.com/wp-content/img/sprites/ds/nsmb/koopa-paratroopa.png",
+    "method": "Native poses extracted from the ripped sprite sheet in listed order, without resampling; sheet background removed. Playback interval 90 ms is an approximation, not extracted engine timing."
+  },
+  {
+    "edition": "nsmb",
+    "name": "Koopa Paratroopa (Red)",
+    "path": "assets/monsters/original/nsmb/koopa-paratroopa-red.webp",
+    "width": 32,
+    "height": 32,
+    "frames": 11,
+    "durationsMs": [
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90,
+      90
+    ],
+    "filePage": "https://www.mariouniverse.com/sprites-ds-nsmb/",
+    "downloadUrl": "https://www.mariouniverse.com/wp-content/img/sprites/ds/nsmb/koopa-paratroopa.png",
+    "method": "Native poses extracted from the ripped sprite sheet in listed order, without resampling; sheet background removed. Playback interval 90 ms is an approximation, not extracted engine timing."
+  }
+]
