@@ -31,9 +31,19 @@
       <button id="hudFull" title="전체화면 (F)">⛶</button>
       <button id="hudPanel" title="운영 패널 (O)">⚙</button>
     </div>
-    <div class="hud-audio" aria-label="소리 조절">
-      <label for="sfxVolume"><span>효과음</span><input id="sfxVolume" type="range" min="0" max="100" step="1" aria-label="효과음 소리"><output id="sfxValue" for="sfxVolume"></output></label>
-      <label for="bgmVolume"><span>배경음</span><input id="bgmVolume" type="range" min="0" max="100" step="1" aria-label="배경음 소리"><output id="bgmValue" for="bgmVolume"></output></label>
+    <div class="hud-audio hud-btns" aria-label="소리 조절">
+      <div class="audio-control">
+        <button id="sfxToggle" type="button" title="효과음 조절" aria-label="효과음 조절" aria-expanded="false" aria-controls="sfxPopover"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h5l6-5v18l-6-5H3zM17 7h2v10h-2zM21 4h2v16h-2z"/></svg></button>
+        <div id="sfxPopover" class="audio-popover" role="group" aria-label="효과음 소리 조절" hidden>
+          <label for="sfxVolume"><span>효과음</span><input id="sfxVolume" type="range" min="0" max="100" step="1" aria-label="효과음 소리"><output id="sfxValue" for="sfxVolume"></output></label>
+        </div>
+      </div>
+      <div class="audio-control">
+        <button id="bgmToggle" type="button" title="배경음 조절" aria-label="배경음 조절" aria-expanded="false" aria-controls="bgmPopover"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v12H3v5h7V8l10-2v8h-5v5h7V1z"/></svg></button>
+        <div id="bgmPopover" class="audio-popover" role="group" aria-label="배경음 소리 조절" hidden>
+          <label for="bgmVolume"><span>배경음</span><input id="bgmVolume" type="range" min="0" max="100" step="1" aria-label="배경음 소리"><output id="bgmValue" for="bgmVolume"></output></label>
+        </div>
+      </div>
     </div>
   </div>
   <div id="vignette"></div>

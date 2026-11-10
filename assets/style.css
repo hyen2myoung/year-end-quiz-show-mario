@@ -56,7 +56,13 @@ kbd { display: inline-block; min-width: 1.5em; padding: 0 .3em; margin: 0 .15em;
 .hud-btns { display: flex; flex-direction: column; gap: 12px; }
 .hud-btns button { width: 48px; height: 48px; font-size: 30px; line-height: 48px; background: #22244a; color: #c8ccf0; box-shadow: inset 0 0 0 3px #4a4e8a; opacity: .5; font-family: sans-serif; }
 .hud-btns button:hover { opacity: 1; }
-.hud-audio { flex: 0 0 240px; display: grid; gap: 18px; color: #c8ccf0; }
+.hud-audio { flex: 0 0 48px; position: relative; color: #c8ccf0; }
+.audio-control { height: 48px; }
+.hud-audio button svg { display: block; width: 30px; height: 30px; margin: auto; fill: currentColor; }
+.hud-audio button[aria-expanded="true"] { opacity: 1; background: #34375d; }
+.audio-popover { position: absolute; right: 0; bottom: calc(100% + 18px); padding: 18px; background: #17182e; border: 3px solid #7479aa; box-shadow: 6px 6px 0 #000; }
+.audio-popover[hidden] { display: none; }
+.hud-audio button:focus-visible { outline: 3px solid #fff2bd; outline-offset: 3px; }
 .hud-audio label { display: grid; grid-template-columns: 64px 116px 42px; align-items: center; gap: 9px; font-size: 19px; }
 .hud-audio output { font-size: 18px; text-align: right; white-space: nowrap; }
 .hud-audio input { appearance: none; -webkit-appearance: none; width: 116px; height: 12px; margin: 0; padding: 0; background: #34375d; border: 2px solid #7479aa; cursor: pointer; }

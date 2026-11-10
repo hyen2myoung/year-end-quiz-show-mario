@@ -123,6 +123,7 @@
   const heroes = {};
   let busy = false;
   function newScene() {
+    closeAudioControls();
     Sound.stopBoss();
     if (scene.castActivity) scene.castActivity.stop();
     scene.timers.forEach((t) => { clearTimeout(t); clearInterval(t); });
@@ -2029,6 +2030,8 @@
   }
 
   document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && closeAudioControls(true)) { e.preventDefault(); return; }
+    if (e.target && e.target.closest && e.target.closest('.hud-audio')) return;
     if (e.target && e.target.tagName === 'INPUT') return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
@@ -2066,14 +2069,33 @@
   });
   $('#hudFull').onclick = (e) => { e.currentTarget.blur(); toggleFull(); };
   $('#hudPanel').onclick = (e) => { e.currentTarget.blur(); openPanel(); };
+  function closeAudioControls(restoreFocus = false) {
+    const open = $('.hud-audio button[aria-expanded="true"]');
+    document.querySelectorAll('.audio-popover').forEach((popover) => { popover.hidden = true; });
+    document.querySelectorAll('.hud-audio button').forEach((button) => button.setAttribute('aria-expanded', 'false'));
+    if (restoreFocus && open) open.focus();
+    return !!open;
+  }
   function initAudioControls() {
     [['sfx', Sound], ['bgm', Bgm]].forEach(([kind, audio]) => {
       const input = $(`#${kind}Volume`), output = $(`#${kind}Value`);
-      const paint = () => { input.value = Math.round(audio.getVolume() * 100); output.textContent = `${input.value}%`; };
+      const toggle = $(`#${kind}Toggle`), popover = $(`#${kind}Popover`);
+      const paint = () => {
+        input.value = Math.round(audio.getVolume() * 100); output.textContent = `${input.value}%`;
+        toggle.title = `${kind === 'sfx' ? '효과음' : '배경음'} ${input.value}% 조절`;
+      };
+      toggle.onclick = () => {
+        const opening = popover.hidden;
+        closeAudioControls();
+        if (opening) { popover.hidden = false; toggle.setAttribute('aria-expanded', 'true'); input.focus({ preventScroll: true }); }
+      };
       input.oninput = () => { audio.setVolume(Number(input.value) / 100); paint(); };
       paint();
     });
   }
+  document.addEventListener('pointerdown', (e) => {
+    if (!e.target.closest('.hud-audio')) closeAudioControls();
+  });
 
   /* 전체화면과 소리는 브라우저 정책상 첫 입력 뒤에만 가능하다 */
   let firstGesture = true;
