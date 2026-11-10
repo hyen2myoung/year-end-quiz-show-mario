@@ -42,6 +42,7 @@
   CATS.forEach((c) => LEVELS.forEach((l) => { for (let n = 1; n <= SLOTS; n++) allIds.push(idOf(c.name, l.name, n)); }));
   const readyIds = allIds.filter((id) => hasContent(QS[id]));
   const catOf = (name) => CATS.find((c) => c.name === name) || CATS[0];
+  const editionOf = (cat) => (window.QUIZ_EDITIONS || {})[catOf(cat).edition];
   const catIndex = (name) => Math.max(0, CATS.indexOf(catOf(name)));
   const levelIndex = (name) => Math.max(0, LEVELS.findIndex((l) => l.name === name));
   const stageOf = (name) => { const c = catOf(name); return c.stage || STAGES[catIndex(name) % STAGES.length]; };
@@ -100,6 +101,26 @@
     stage.style.transform = `translate(${view.x}px,${view.y}px) scale(${s})`;
   }
   const toStage = (cx, cy) => ({ x: (cx - view.x) / view.s, y: (cy - view.y) / view.s });
+  /* 파이프 판에서 마우스 끝에서 눈이 살살 내린다: 움직이는 동안은 조금 더, 가만히 있으면 가끔 한 알씩 */
+  let snowAt = null, snowLast = 0, emberLast = 0;
+  let bossSpots = []; /* 파이프 판 보스 층 발판 자리 (불티가 올라오는 곳) */
+  stage.addEventListener('mousemove', (e) => { snowAt = toStage(e.clientX, e.clientY); snowAt.moved = performance.now(); });
+  stage.addEventListener('mouseleave', () => { snowAt = null; });
+  (function snowTick(now) {
+    requestAnimationFrame(snowTick);
+    if (state.screen !== 'board') return;
+    /* 보스 층: 발판 아래 용암에서 불티가 쉬지 않고 솟아오른다 */
+    if (bossSpots.length && now - emberLast > 90) {
+      emberLast = now;
+      const b = bossSpots[Math.floor(Math.random() * bossSpots.length)];
+      Fx.ember(b.x + Math.random() * b.w, b.y + 6);
+    }
+    if (!snowAt) return;
+    const gap = now - snowAt.moved < 150 ? 70 : 380;
+    if (now - snowLast < gap) return;
+    snowLast = now;
+    Fx.flake(snowAt.x, snowAt.y);
+  })(0);
   const rectOf = (node) => {
     const r = node.getBoundingClientRect();
     const a = toStage(r.left, r.top), b = toStage(r.right, r.bottom);
@@ -231,6 +252,7 @@
     cardEl.innerHTML = `
       <div class="card-world"><img src="${SP.icon(c.icon || 'book', '#ffffff')}" alt=""><span>WORLD ${catIndex(p.cat) + 1}-${levelIndex(p.level) + 1}</span></div>
       <div class="card-stage ${todOf(id)}"><img src="${SP.icon('flag', { day: '#ffd23f', dusk: '#ff8a5a', night: '#9ab4ff' }[todOf(id)])}" alt="">${esc(stageName(id))}</div>
+      ${editionOf(p.cat) ? `<div class="card-edition">${esc(editionOf(p.cat).name)}</div>` : ''}
       <div class="card-name" style="--c:${c.color || '#2f7ae8'}">${esc(p.cat)}</div>
       <div class="card-level">${esc(p.level)} - ${p.no} <em>${starsOf(p.level)}</em></div>
       <div class="card-lives"><img src="${portrait('gureum')}" alt=""><img src="${portrait('noeul')}" alt=""><b>× ${pad2(left)}</b><small>남은 문제</small></div>`;
@@ -577,7 +599,7 @@
       if (!jumped && x + coins[0].dx - hero.x < speed * .24) {
         jumped = true;
         unpark(hero);
-        Sound.play('jump');
+        Sound.play('jump', { ambient: true });
         hero.hop(140, 640, hero.poseName === 'run' ? 'run' : 'idle');
       }
       coins.forEach((c) => {
@@ -586,7 +608,7 @@
         if (Math.abs(cx - hero.x) < 56 && hero.y < FLOOR - 70) {
           c.got = true;
           c.el.classList.add('got');
-          Sound.play('coin');
+          Sound.play('coin', { ambient: true });
           Fx.sparks(cx, y + 36, 6, '#ffd23f');
         }
       });
@@ -605,12 +627,12 @@
       if (d > 0 && d <= closing * HOP / 1000 + 6) {
         clearInterval(tick);
         unpark(f);
-        Sound.play('jump');
+        Sound.play('jump', { ambient: true });
         f.hop(130, HOP, f.poseName === 'run' ? 'run' : 'idle').then((ok) => {
           if (!ok || !alive(s)) return;
           if (Math.abs(pg.x - f.x) < 80) {
             pg.stomp();
-            Sound.play('stomp');
+            Sound.play('stomp', { ambient: true });
             f.hop(60, 300, f.poseName === 'run' ? 'run' : 'idle').then(() => onStomp && onStomp());
           }
         });
@@ -727,32 +749,74 @@
     screens.innerHTML = '';
     const scr = el('div', 'screen board-screen pipe-room');
     pipeEls = {};
-    /* 탑마다 뒤에 그 월드의 풍경 판. 층마다 시간대가 바뀐다: 아래(하) 낮 → 중 노을 → 위(상) 밤 */
-    CATS.forEach((c, ci) => {
+    bossSpots = [];
+    /* 맨 뒤 배경은 화면 전체에 하늘 하나: 층마다 시간대가 바뀐다 (아래 하 낮 → 중 노을 → 위 상 밤).
+       층 경계(각 층 파이프 40px 위)에서 위아래 SKY_FADE px 동안 다음 시간대로 서서히 물든다 */
+    const SKY = { day: ['#d2efff', '#94d2f4'], dusk: ['#f6c08a', '#cf7290'], night: ['#454a8c', '#151a44'] };
+    /* 맨 위층(보스 성) 하늘은 핏빛 밤: 아래는 용암 빛이 번진 검붉은색, 위로 갈수록 거의 검정 */
+    const BOSS_SKY = ['#6a1a2a', '#14060e'];
+    const tiers0 = tierLayout(0), SKY_FADE = 50;
+    const skyCut = tiers0.map((t, i) => (i === 0 ? FLOOR : tiers0[i - 1].top - 40));
+    const stops = [];
+    tiers0.forEach((t, i) => {
+      const [lo, hi] = i === tiers0.length - 1 && tiers0.length > 1 ? BOSS_SKY : SKY[todOfLevel(i)] || SKY.day;
+      const last = i + 1 >= skyCut.length;
+      stops.push(`${lo} ${FLOOR - skyCut[i] + (i ? SKY_FADE : 0)}px`, `${hi} ${FLOOR - (last ? 0 : skyCut[i + 1]) - (last ? 0 : SKY_FADE)}px`);
+    });
+    const sky = el('div', 'board-sky');
+    sky.style.background = `linear-gradient(to top, ${stops.join(', ')})`;
+    scr.appendChild(sky);
+    /* 탑마다 그 월드의 풍경 판 (분야마다 맵이 다르다). 평소엔 하늘 위에 옅게(30%) 깔려 있고,
+       마우스가 그 탑 위로 오면 또렷해지면서 맵을 달리는 것처럼 풍경이 옆으로 천천히 흘러간다 */
+    const worlds = CATS.map((c, ci) => {
       const tiers = tierLayout(ci);
       const cw = Math.round((tiers[0].w + 56) / U), x0 = towerX(ci) - cw * U / 2;
       const top = Math.floor((tiers[tiers.length - 1].top - 234) / U) * U;
       const H = Math.round((FLOOR - top) / U);
-      /* 층 경계: 각 층 발판 40px 위. 경계에서 위아래 FADE px 동안 다음 시간대로 서서히 물든다 */
-      const cut = tiers.map((t, i) => (i === 0 ? FLOOR : Math.floor((tiers[i - 1].top - 40) / U) * U));
-      const FADE = 70;
-      /* 물속·지하는 원래 어두워서 판에서는 시간대 빛을 한 겹 더 씌운다 (CSS .tower-bg.closed) */
+      const tod = todOfLevel(0);
+      /* 물속·지하는 원래 어두워서 시간대 빛을 한 겹 더 씌운다 (CSS .tower-bg.closed) */
       const b = el('div', `tower-bg world${['water', 'cave'].includes(stageOf(c.name)) ? ' closed' : ''}`);
       b.style.cssText = `left:${x0}px;top:${top}px;width:${cw * U}px;height:${H * U}px`;
-      /* 시간대마다 판 전체 그림을 한 장씩 겹친다. 위 시간대일수록 위쪽만 보이게 그러데이션 가림막 */
-      tiers.forEach((t, i) => {
-        const url = World.snapshot(stageOf(c.name), { tint: catHex(c), tod: todOfLevel(i), cam: 40 + ci * 137, x: 0, y: Math.max(0, World.GY - H), w: cw, h: H });
-        const layer = el('div', `tod tod-${todOfLevel(i)}`);
-        layer.style.backgroundImage = `url(${url})`;
-        if (i > 0) {
-          const d = FLOOR - cut[i]; /* 판 아래에서 경계까지 */
-          const m = `linear-gradient(to top, transparent ${d - FADE}px, #000 ${d + FADE}px)`;
-          layer.style.maskImage = m; layer.style.webkitMaskImage = m;
-        }
-        b.appendChild(layer);
-      });
+      const layer = el('div', `tod tod-${tod}`);
+      const cv = document.createElement('canvas');
+      cv.width = cw; cv.height = H;
+      layer.appendChild(cv);
+      b.appendChild(layer);
       scr.appendChild(b);
+      const w = { el: b, ctx: cv.getContext('2d'), cam: 40 + ci * 137, t: 0,
+        paint() { World.paintCrop(this.ctx, stageOf(c.name), { tint: catHex(c), tod, cam: this.cam, t: this.t, x: 0, y: Math.max(0, World.GY - H), w: cw, h: H }); } };
+      w.paint();
+      return w;
     });
+    /* 보스 층 위로 검붉은 장막: 옅게 깔린 탑 풍경까지 핏빛으로 물들여 맨 위층이 한눈에 무섭게 보이게 */
+    if (tiers0.length > 1) {
+      const veil = el('div', 'boss-veil');
+      veil.style.height = `${skyCut[skyCut.length - 1] + SKY_FADE}px`;
+      scr.appendChild(veil);
+    }
+    /* 마우스가 어느 탑 영역(풍경 판 자리) 안에 있는지 위치로 판단 (파이프가 위에 겹쳐 있어도 되게) */
+    let runWorld = null, runRaf = 0, runLast = 0;
+    const RUN_SPEED = 18; /* 1초에 몇 칸 흘러갈지 */
+    const run = (now) => {
+      if (!runWorld || !runWorld.el.isConnected) { runRaf = 0; return; }
+      const dt = Math.min(.05, (now - (runLast || now)) / 1000);
+      runLast = now;
+      runWorld.cam += RUN_SPEED * dt; runWorld.t += dt;
+      runWorld.paint();
+      runRaf = requestAnimationFrame(run);
+    };
+    const hoverWorld = (e) => {
+      const hit = e && worlds.find((w) => {
+        const r = w.el.getBoundingClientRect();
+        return e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+      });
+      if (hit === runWorld) return;
+      worlds.forEach((w) => w.el.classList.toggle('show', w === hit));
+      runWorld = hit || null; runLast = 0;
+      if (runWorld && !runRaf) runRaf = requestAnimationFrame(run);
+    };
+    scr.addEventListener('mousemove', hoverWorld);
+    scr.addEventListener('mouseleave', () => hoverWorld(null));
     CATS.forEach((c, ci) => {
       const tiers = tierLayout(ci);
       const ids = readyIds.filter((id) => parseId(id).cat === c.name);
@@ -763,17 +827,14 @@
       sign.dataset.cat = c.name;
       scr.appendChild(sign);
       tiers.forEach((t) => {
-        if (t.r > 0) {
-          /* 층 발판 벽돌 색 = 난이도 색 (settings.js levels 의 color) */
-          const pf = el('div', 'platform', `<b>${esc(t.lv.name)} <em>${starsOf(t.lv.name)}</em></b>`);
-          pf.style.cssText = `left:${t.left - 12}px;top:${t.surface}px;width:${t.w + 24}px;background-image:url(${SP.brick(t.lv.color)})`;
-          scr.appendChild(pf);
-        } else {
-          /* 맨 아래층도 같은 색 벽돌 판 (공중에 떠 있다) */
-          const slab = el('div', 'platform ground-slab', `<b>${esc(t.lv.name)} <em>${starsOf(t.lv.name)}</em></b>`);
-          slab.style.cssText = `left:${t.left - 12}px;top:${t.surface}px;width:${t.w + 24}px;background-image:url(${SP.brick(t.lv.color)})`;
-          scr.appendChild(slab);
-        }
+        /* 층 발판은 모두 같은 기본 벽돌 (색이 너무 많아지지 않게). 난이도는 흰 명패(하·중·상 + 금별)로 */
+        const plate = `<b>${esc(t.lv.name)} <em>${starsOf(t.lv.name)}</em></b>`;
+        /* 맨 위층(가장 어려운 난이도)은 보스 성: 회색 성벽 돌 + 아래로 가시 + 용암 빛 (CSS .platform.boss) */
+        const boss = t.r === LEVELS.length - 1 && LEVELS.length > 1;
+        const pf = el('div', `platform${t.r === 0 ? ' ground-slab' : ''}${boss ? ' boss' : ''}`, plate);
+        pf.style.cssText = `left:${t.left - 12}px;top:${t.surface}px;width:${t.w + 24}px;background-image:url(${SP.brick(boss ? 'castle' : null)})`;
+        scr.appendChild(pf);
+        if (boss) bossSpots.push({ x: t.left - 12, w: t.w + 24, y: t.surface + 64 });
         t.cols.forEach((x, k) => {
           const id = idOf(c.name, t.lv.name, k + 1);
           const ready = readyIds.includes(id), used = !!state.used[id];
@@ -883,7 +944,7 @@
     const d = depthOf(f);
     f.place(p.x, p.top + d);
     clipAt(f, p.top);
-    Sound.play('pipe');
+    Sound.play('pipe', { ambient: true });
     const ok = await slidePipe(f, p.top + d, p.top, f.s >= .29 ? 650 : 850, p.top);
     clipAt(f, null);
     return ok && alive(s);
@@ -1047,12 +1108,100 @@
   let clockEl = null;
   let instantPanel = false;
 
+  /* 각 세대의 원본 캐릭터. 문제 창 아래 정해진 자리에서만 천천히 움직인다.
+     마스코트와 충돌하지 않고, 처치·동전·소리 같은 자동 이벤트도 만들지 않는다. */
+  function addEditionCast(scr, id) {
+    const p = parseId(id), edition = editionOf(p.cat);
+    if (!edition) return;
+    scr.dataset.edition = catOf(p.cat).edition;
+    const cast = edition.cast[levelIndex(p.level)] || edition.cast[0] || [];
+    const layer = el('div', 'edition-cast');
+    layer.setAttribute('aria-hidden', 'true');
+    cast.forEach((character, i) => {
+      const scale = Math.max(1, Math.min(4, Math.floor(144 / character.height), Math.floor(160 / character.width)));
+      const actor = el('div', 'edition-character');
+      actor.style.cssText = `left:${710 + i * 250}px;--delay:${-i * 4}s`;
+      const image = document.createElement('img');
+      image.className = 'edition-sprite';
+      image.src = character.path;
+      image.alt = '';
+      image.width = character.width * scale;
+      image.height = character.height * scale;
+      image.onerror = () => actor.remove();
+      actor.appendChild(image);
+      layer.appendChild(actor);
+    });
+    scr.prepend(layer);
+  }
+
+  /* 상 난이도: 원래 월드 위에 불빛을 얹는다. 문제 창 아래만 그려 집중 모드에서도 불이 보인다.
+     타이머는 장면에 묶여 지도나 다른 문제로 이동하면 함께 정리된다. */
+  function addHardMode(s, scr, id) {
+    if (parseId(id).level !== '상') return;
+    scr.classList.add('hard-mode');
+    const cv = document.createElement('canvas');
+    cv.className = 'hard-ambience';
+    cv.width = 320; cv.height = 64;
+    cv.setAttribute('aria-hidden', 'true');
+    scr.prepend(cv);
+    const badge = el('div', 'hard-badge', 'HARD MODE');
+    scr.appendChild(badge);
+    const g = cv.getContext('2d');
+    const torches = [[8, 35], [96, 46], [224, 46], [312, 35]];
+    let tick = 0;
+    function paint() {
+      g.clearRect(0, 0, 320, 64);
+      const heat = g.createLinearGradient(0, 32, 0, 64);
+      heat.addColorStop(0, 'rgba(255, 66, 20, 0)');
+      heat.addColorStop(1, 'rgba(255, 66, 20, .28)');
+      g.fillStyle = heat; g.fillRect(0, 32, 320, 32);
+      /* 용암이 새는 도트 균열. 바닥 벽돌은 남기고 틈에서만 빛이 난다. */
+      for (let i = 0; i < 22; i++) {
+        const x = (i * 47 + 12) % 320, y = 51 + i % 3 * 3;
+        g.fillStyle = (i + tick) % 5 < 2 ? '#ffb343' : '#d94a25';
+        g.fillRect(x, y, 4 + i % 4, 1);
+        g.fillRect(x + 2, y + 1, 2, 1);
+      }
+      torches.forEach(([x, y], i) => {
+        const glow = g.createRadialGradient(x, y - 5, 1, x, y - 5, 23);
+        glow.addColorStop(0, 'rgba(255, 144, 32, .42)');
+        glow.addColorStop(1, 'rgba(255, 70, 20, 0)');
+        g.fillStyle = glow; g.fillRect(x - 23, y - 28, 46, 46);
+        /* 검은 쇠 화로와 받침 */
+        g.fillStyle = '#211b2b'; g.fillRect(x - 2, y + 2, 4, 48 - y);
+        g.fillRect(x - 5, y, 10, 3); g.fillRect(x - 4, 47, 8, 2);
+        g.fillStyle = '#8c5260'; g.fillRect(x - 1, y + 3, 1, Math.max(0, 44 - y));
+        g.fillStyle = '#c56a38'; g.fillRect(x - 4, y, 8, 1);
+        /* 불꽃은 2칸 폭 기둥을 겹쳐 도트 윤곽으로 일렁인다. */
+        for (let col = -2; col <= 2; col++) {
+          const h = 7 + (2 - Math.abs(col)) * 3 + Math.round(Math.sin(tick * .8 + i * 2 + col * 1.9) * 2);
+          g.fillStyle = '#ef4924'; g.fillRect(x + col * 2 - 1, y - h, 2, h);
+          g.fillStyle = '#ff9b32'; g.fillRect(x + col * 2 - 1, y - Math.max(2, h - 3), 2, Math.max(2, h - 3));
+          if (Math.abs(col) < 2) { g.fillStyle = '#ffe481'; g.fillRect(x + col * 2 - 1, y - 3 - (1 - Math.abs(col)) * 3, 2, 3 + (1 - Math.abs(col)) * 3); }
+        }
+      });
+      /* 불티는 글에 겹치지 않는 높이에서 천천히 올라가며 사라진다. */
+      for (let i = 0; i < 26; i++) {
+        const age = (tick + i * 7) % 48;
+        const x = (i * 73 + Math.round(Math.sin(tick * .12 + i) * 3) + 320) % 320;
+        g.globalAlpha = (1 - age / 48) * .85;
+        g.fillStyle = i % 3 ? '#ff9c3a' : '#ffe38b';
+        g.fillRect(x, 49 - age, 1, i % 4 ? 1 : 2);
+      }
+      g.globalAlpha = 1;
+      tick++;
+    }
+    paint();
+    every(s, 100, paint);
+  }
+
   function panelHTML(id, kind) {
     const p = parseId(id), c = catOf(p.cat);
     const head = kind === 'answer'
       ? `<div class="tab tab-answer"><img src="${SP.icon('bulb', '#ffffff')}" alt="">정답!</div><div class="tab-meta">${esc(p.cat)} ${esc(p.level)}-${p.no}</div>`
       : `<div class="tab" style="--c:${c.color || '#2f7ae8'}"><img src="${SP.icon(c.icon || 'book', '#ffffff')}" alt="">${esc(p.cat)}<span class="tab-lv">${esc(p.level)}-${p.no}</span></div><div class="tab-meta">${starsOf(p.level)}</div>`;
-    return `<div class="qpanel pwin ${kind}${instantPanel ? '' : ' opening'}" style="left:${Q_PANEL.x}px;top:${Q_PANEL.y}px;width:${Q_PANEL.w}px;height:${Q_PANEL.h}px">${head}<div class="q-body"></div></div>`;
+    const edition = editionOf(p.cat);
+    return `<div class="qpanel pwin ${kind}${instantPanel ? '' : ' opening'}" style="left:${Q_PANEL.x}px;top:${Q_PANEL.y}px;width:${Q_PANEL.w}px;height:${Q_PANEL.h}px">${head}${edition ? `<div class="edition-tab">${esc(edition.name)}</div>` : ''}<div class="q-body"></div></div>`;
   }
   function fillBody(body, text, img, audio, posKey, s, hasMediaSize) {
     let textNode = null;
@@ -1089,6 +1238,8 @@
     const scr = el('div', 'screen q-screen');
     instantPanel = instant;
     scr.innerHTML = panelHTML(id, 'question');
+    addHardMode(s, scr, id);
+    addEditionCast(scr, id);
     fillBody($('.q-body', scr), q.q, q.q_img, q.q_audio, `${id}:q`, s, q.q_audio ? 77 : 88);
 
     /* 타이머 블록 */
@@ -1144,14 +1295,14 @@
       (async () => {
         await later(s, 250);
         if (!(await pipeRise(s, gureum, null, cover, EXIT_X, top))) return;
-        Sound.play('jump');
+        Sound.play('jump', { ambient: true });
         gureum.facing(-1);
         gureum.arc(HOME.gureum, FLOOR, 90, 460, 'idle').then((ok) => {
           if (ok && alive(s)) { park(gureum); gureum.say(pick(['문제 나왔다!', '다들 준비됐죠?', '잘 읽어 봐요!']), 1800); }
         });
         await later(s, 120);
         if (!(await pipeRise(s, noeul, null, cover, EXIT_X, top))) return;
-        Sound.play('jump');
+        Sound.play('jump', { ambient: true });
         noeul.facing(-1);
         await noeul.arc(EXIT_X + 160, FLOOR, 90, 460, 'run');
         if (!alive(s)) return;
@@ -1479,6 +1630,8 @@
     const scr = el('div', 'screen a-screen');
     instantPanel = instant;
     scr.innerHTML = panelHTML(id, 'answer');
+    addHardMode(s, scr, id);
+    addEditionCast(scr, id);
     fillBody($('.q-body', scr), q.a, q.a_img, q.a_audio, `${id}:a`, s, q.a_audio ? 77 : 88);
     const next = el('button', 'gbtn right', `지도로 ▶ ${key('Enter')}`);
     next.id = 'nextBtn';

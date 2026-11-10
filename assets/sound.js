@@ -121,6 +121,9 @@
     timer: Timer,
     play(name, opts = {}) {
       if (!this.enabled) return;
+      /* 문제 중 자동 캐릭터 연출은 무음. 타이머와 직접 누른 정답 조작의 소리는 유지한다. */
+      const reading = ['question', 'answer'].includes(document.body.dataset.screen);
+      if (reading && (opts.ambient || name === 'stomp')) return;
       switch (name) {
         case 'start': file('1up'); break;
         case 'move': beep([[1568, 0.035]], 0.05); break;
@@ -155,7 +158,10 @@
      지도 곡은 문제를 풀고 돌아왔을 때 멈췄던 곳부터 이어서 나온다. */
   const Bgm = {
     unlocked: false, want: null, holds: {}, quietUntil: 0, players: {}, lists: {},
-    vol() { return Math.max(0, Math.min(1, SET.bgmVolume == null ? 0.5 : SET.bgmVolume)); },
+    vol() {
+      const level = this.want && this.want.startsWith('stage:') ? SET.stageBgmVolume : SET.bgmVolume;
+      return Math.max(0, Math.min(1, level == null ? (SET.bgmVolume == null ? 0.5 : SET.bgmVolume) : level));
+    },
     player(name) {
       if (this.players[name]) return this.players[name];
       const list = (this.lists[name] || (SET.bgmTracks || {})[name] || []).filter(Boolean);
@@ -178,11 +184,14 @@
         if (k >= 1) { clearInterval(pl.fade); if (done) done(); }
       }, 30);
     },
-    sync() {
+    sync({ immediate = false } = {}) {
       if (!SET.bgm) return;
       const on = this.active();
       Object.entries(this.players).forEach(([n, pl]) => {
-        if (n !== on && !pl.a.paused) this.fadeTo(pl, 0, 400, () => pl.a.pause());
+        if (n !== on) {
+          if (immediate) { clearInterval(pl.fade); pl.a.volume = 0; pl.a.pause(); }
+          else if (!pl.a.paused) this.fadeTo(pl, 0, 400, () => pl.a.pause());
+        }
       });
       const pl = on && this.player(on);
       if (!pl) return;
@@ -206,7 +215,7 @@
     /* 잠깐 조용히 (모든 문제 끝 축하 음악이 나오는 동안) */
     quiet(ms) { this.quietUntil = Date.now() + ms; this.sync(); setTimeout(() => this.sync(), ms + 50); },
     /* 잠깐 멈춤. why 별로 따로 건다 (media: 문제의 음악 재생 중, timer: P Switch 타이머) */
-    hold(v, why = 'media') { if (!!this.holds[why] === !!v) return; this.holds[why] = !!v; this.sync(); }
+    hold(v, why = 'media') { if (!!this.holds[why] === !!v) return; this.holds[why] = !!v; this.sync({ immediate: !!v }); }
   };
   window.Sound = Sound;
   window.Bgm = Bgm;

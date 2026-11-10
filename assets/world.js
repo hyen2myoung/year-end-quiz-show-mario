@@ -908,6 +908,17 @@
       out.getContext('2d').drawImage(c, x, y, w, h, 0, 0, w, h);
       return out.toDataURL();
     },
+    /* snapshot 과 같지만 그림 주소 대신 주어진 캔버스(ctx)에 바로 그린다. 매 프레임 불러도 되게 큰 캔버스를 하나 돌려 쓴다.
+       파이프 판에서 마우스를 올린 탑의 풍경이 옆으로 달리듯 흘러가게 할 때 쓴다 (cam 을 조금씩 키워 가며) */
+    paintCrop(ctx, theme, { tint = null, tod = null, cam = 0, t = 0, x = 0, y = 0, w = VW, h = VH, trees = true, props = false } = {}) {
+      if (!W.cropCv) { W.cropCv = document.createElement('canvas'); W.cropCv.width = VW; W.cropCv.height = VH; W.cropG = W.cropCv.getContext('2d'); W.cropG.imageSmoothingEnabled = false; }
+      const g = W.cropG;
+      const keep = [SG, SCAM];
+      paintScene(g, THEMES[theme] || STAGE_BUILD[theme] ? theme : 'day', tint, cam, t, trees, props, TOD[tod] ? tod : null);
+      [SG, SCAM] = keep;
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(W.cropCv, x, y, w, h, 0, 0, w, h);
+    },
     /* 월드 지도. layout.islands = [{x,y,w,h,theme,path:[[x,y],...]}] (칸 단위) */
     map(layout) { W.mode = 'map'; W.vel = 0; W.pan = null; W.map = buildMap(layout); }
   };
@@ -947,6 +958,14 @@
         const cx = Math.round(p.x), cy = Math.round(p.y);
         g.fillRect(cx - r, cy - r + 1, r * 2 + 1, r * 2 - 1);
         g.fillRect(cx - r + 1, cy - r, r * 2 - 1, r * 2 + 1);
+        g.globalAlpha = 1;
+      } else if (p.kind === 'flake') {
+        /* 마우스에서 떨어지는 눈송이: 좌우로 살랑이며 천천히 내려오다 옅어진다 */
+        const x = Math.round(p.x + Math.sin(p.age * p.sway + p.ph) * 3), y = Math.round(p.y);
+        g.globalAlpha = Math.min(1, (p.life - p.age) / (p.life * .4));
+        g.fillStyle = '#ffffff';
+        if (p.size > 1) { g.fillRect(x - 1, y, 3, 1); g.fillRect(x, y - 1, 1, 3); }
+        else g.fillRect(x, y, 1, 1);
         g.globalAlpha = 1;
       } else if (p.kind === 'rocket') {
         g.fillStyle = '#ffffff'; g.fillRect(Math.round(p.x), Math.round(p.y), 1, 2);
@@ -989,6 +1008,16 @@
     },
     confetti(n = 80) {
       for (let i = 0; i < n; i++) FX.list.push({ kind: 'dot', x: Math.random() * VW, y: -Math.random() * 40, vx: (Math.random() - .5) * 20, vy: 20 + Math.random() * 30, grav: 6, age: 0, life: 6, color: COLORS[i % COLORS.length], size: 2 });
+    },
+    /* 보스 층 용암 불티: 위로 솟아오르며 깜빡이다 꺼진다 (화면 픽셀 좌표) */
+    ember(x, y) {
+      FX.list.push({ kind: 'dot', x: v(x), y: v(y), vx: (Math.random() - .5) * 8, vy: -(10 + Math.random() * 16), grav: 0,
+        age: 0, life: 1 + Math.random() * 1.2, color: ['#ff4a1a', '#ff8a2a', '#ffd23f'][Math.floor(Math.random() * 3)], size: Math.random() < .3 ? 2 : 1 });
+    },
+    /* 마우스 끝에서 눈송이 한 알 (화면 픽셀 좌표) */
+    flake(x, y) {
+      FX.list.push({ kind: 'flake', x: v(x) + (Math.random() - .5) * 4, y: v(y) + 2, vx: (Math.random() - .5) * 4, vy: 8 + Math.random() * 8, grav: 0,
+        age: 0, life: 1.6 + Math.random() * 1.2, sway: 2 + Math.random() * 2, ph: Math.random() * 6, size: Math.random() < .35 ? 2 : 1 });
     },
     /* 착지·달리기 먼지. trail=true 면 한 덩이만 뒤로 */
     dust(x, y, trail) {

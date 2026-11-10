@@ -70,6 +70,9 @@ SW 센터 송년회 퀴즈쇼 (옛날 횡스크롤 게임 테마) 사용법
  · 분야 = 월드, 난이도 = 스테이지 (마리오 게임처럼).
    categories 의 stage 로 월드 테마를 고릅니다: day(눈 덮인 평원) · water(물속) · sky(하늘) · cave(지하 얼음 동굴).
    지금은 상식 = 평원, 청각 = 물속, 시각 = 하늘, 두뇌 = 지하.
+   마리오 버전은 상식 = 초대 슈퍼 마리오브라더스, 청각 = 3편, 시각 = 뉴 슈퍼 마리오 DS, 두뇌 = 슈퍼 마리오 월드.
+   categories 의 edition 과 data/editions.js 에서 문제·정답에 나올 버전과 캐릭터를 정합니다.
+   원본 캐릭터는 문제 창 아래에서 천천히 움직이며 충돌·처치·자동 효과음을 만들지 않습니다. 상에는 같은 버전의 보스가 나옵니다.
    난이도는 같은 월드의 시간대로 나타냅니다: 하 = 낮, 중 = 노을, 상 = 밤 (levels 의 time: day · dusk · night).
    풍경은 그대로이고 빛만 바뀌어서, 어느 분야인지는 그대로 보이고 어려울수록 어두워집니다.
    파이프 화면의 탑 뒤에도 그 월드 풍경이 깔리고, 아래층부터 낮 → 노을 → 밤으로 물듭니다.
@@ -102,13 +105,16 @@ F5, Ctrl+R, 뒤로 가기는 막혀 있습니다. 브라우저 버튼으로 새�
 [배경음·효과음]
 배경음: 표지는 Super Mario Bros 「Overworld Theme」, 문제 고르는 파이프 화면은 Super Mario Bros 3 「World Map 1·2·3·4·7」을 차례로 돌려 틉니다.
   문제·정답 화면은 월드와 난이도마다 다른 곡이 나옵니다 (settings.js categories 의 bgm, 하·중·상 순서). 상(밤)은 긴장감 있는 성·보스 곡입니다.
-    상식(평원): SMB Overworld / NSMB Overworld / 밤 NSMB Tower
-    청각(물속): SMB Underwater / NSMB Underwater / 밤 SMB3 Castle
-    시각(하늘): SMB3 Sky / NSMB Athletic / 밤 NSMB Castle
-    두뇌(지하): SMB Underground / NSMB Underground / 밤 SMB3 Boss Battle
+    상식(초대): Overworld / Underground / Hurried Castle
+    청각(3편): Underwater / Overworld 2 / Bowser Battle
+    시각(DS): Athletic / Overworld / Castle Boss
+    두뇌(월드): Underground / Haunted House / The Evil King Bowser
   문제의 음악 재생, P Switch 타이머, 시간 종료, Level Clear 동안에는 배경음이 잠깐 멈췄다가 다시 나옵니다.
   지도로 돌아오면 지도 곡이 멈췄던 곳부터 이어집니다.
-  곡 파일은 assets/bgm 폴더, 표지·지도 곡 목록과 음량은 settings.js 의 bgmTracks / bgmVolume.
+  문제·정답 곡은 '배경음악 및 효과음' 폴더의 해당 버전 원본을 사용하며, 이미 같은 내용으로 있는 4곡은 assets/bgm 파일을 재사용합니다. 목록은 settings.js 의 categories.bgm.
+  문제·정답 음량은 stageBgmVolume (기본 0.26), 표지·지도 곡 목록과 음량은 bgmTracks / bgmVolume.
+  문제 음원이나 P Switch 타이머가 시작되면 브금은 즉시 멈추고, 끝나면 부드럽게 이어집니다.
+  문제·정답 중 자동 입장 점프·파이프·처치 소리는 나지 않습니다. 직접 누른 타이머·정답 조작의 효과음은 유지합니다.
   브라우저 정책상 첫 클릭(또는 키 입력) 뒤부터 소리가 납니다. 끄려면 settings.js 의 bgm: false.
 효과음: 받아 둔 마리오 효과음을 원작에서 그 소리가 나는 동작에 붙였습니다 (assets/sfx 폴더, 앞뒤 빈 소리를 자르고 음량을 맞춤).
   난이도 상(밤) 입장 때 보스 얼굴 전환에서는 보스 웃음이 납니다. assets/sfx/laugh.mp3 로 넣으면 그 소리가 나고,

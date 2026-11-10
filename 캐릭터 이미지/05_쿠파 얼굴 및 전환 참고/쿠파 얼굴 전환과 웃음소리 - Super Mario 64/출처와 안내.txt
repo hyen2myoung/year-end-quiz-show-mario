@@ -1,0 +1,17 @@
+쿠파 얼굴 전환 이미지와 웃음소리 — Super Mario 64
+
+이미지: 쿠파 얼굴 - 화면 전환 원본.png
+64×64 PNG, 투명 배경. 출처 사이트의 원본 파일을 그대로 저장했습니다.
+Super Mario Wiki는 이 파일을 단일 스프라이트로 자르고 게임 화면에 맞춰 검게 바꾼 이미지라고 설명합니다.
+원작에서 Mario가 목숨을 잃을 때 사용하는 Bowser iris-out 화면 전환입니다.
+https://www.mariowiki.com/File:SM64_Bowser_iris_out.png
+https://mario.wiki.gallery/images/a/a7/SM64_Bowser_iris_out.png
+
+음성: 쿠파 웃음소리.wav (원본), 쿠파 웃음소리.mp3 (변환본)
+약 2.826875초, 원본 16000 Hz 모노 PCM WAV. 음높이·속도 변경 없음.
+The Mushroom Kingdom / Super Mario 64 / Bowser's laugh (Deezer)
+https://themushroomkingdom.net/media/sm64/wav
+https://themushroomkingdom.net/sounds/wav/sm64/sm64_bowser_laugh.wav
+
+미리보기.html에서 흰 배경 위의 확대 이미지와 웃음소리를 확인할 수 있습니다.
+기존 네 게임의 자료와 구분해 별도 폴더에 저장했습니다.
