@@ -123,6 +123,7 @@
   const heroes = {};
   let busy = false;
   function newScene() {
+    Sound.stopBoss();
     if (scene.castActivity) scene.castActivity.stop();
     scene.timers.forEach((t) => { clearTimeout(t); clearInterval(t); });
     scene = { id: scene.id + 1, timers: [] };
@@ -202,22 +203,27 @@
   /* 닫기: 화면 가득 → 얼굴 크기에서 잠깐 멈춤 → 깜깜 */
   /* 얼굴이 멈춰 있을 때 화면 밖으로 잘리지 않게 가운데 쪽으로 당긴다 */
   const faceAt = (p) => ({ x: Math.max(340, Math.min(1580, p.x)), y: Math.max(330, Math.min(640, p.y)) });
+  const BOSS_CLOSE = { move: 700, hold: 650, fade: 240 };
+  const BOSS_OPEN = { move: 240, hold: 450, fade: 650 };
   function bossClose(at) {
     at = faceAt(at);
     wipeEl.classList.add('on');
-    Sound.play('boss'); /* 보스 얼굴이 나오면서 웃음 */
+    const t = BOSS_CLOSE;
+    Sound.play('boss', { duration: t.move + t.hold + t.fade, fadeIn: t.move, fadeOut: t.fade });
     const ease = (t) => 1 - (1 - t) ** 2;
-    return tween(700, (p) => bossPaint(at.x, at.y, zoom(FACE_FAR, FACE_HOLD, ease(p))))
-      .then(() => new Promise((r) => setTimeout(r, 650)))
-      .then(() => tween(240, (p) => bossPaint(at.x, at.y, FACE_HOLD * (1 - p * p))))
-      .then(() => bossPaint(0, 0, 0));
+    return tween(t.move, (p) => bossPaint(at.x, at.y, zoom(FACE_FAR, FACE_HOLD, ease(p))))
+      .then(() => new Promise((r) => setTimeout(r, t.hold)))
+      .then(() => tween(t.fade, (p) => bossPaint(at.x, at.y, FACE_HOLD * (1 - p * p))))
+      .then(() => { bossPaint(0, 0, 0); Sound.stopBoss(); });
   }
   /* 열기: 깜깜 → 얼굴이 쑥 → 잠깐 멈춤 → 화면 가득 */
   function bossOpen(at) {
-    return tween(240, (p) => bossPaint(at.x, at.y, FACE_HOLD * (1 - (1 - p) ** 2)))
-      .then(() => new Promise((r) => setTimeout(r, 450)))
-      .then(() => tween(650, (p) => bossPaint(at.x, at.y, zoom(FACE_HOLD, FACE_FAR, p * p))))
-      .then(() => { wg.clearRect(0, 0, 320, 180); wipeEl.classList.remove('on'); });
+    const t = BOSS_OPEN;
+    Sound.play('boss', { duration: t.move + t.hold + t.fade, fadeIn: t.move, fadeOut: t.fade, fromEnd: true });
+    return tween(t.move, (p) => bossPaint(at.x, at.y, FACE_HOLD * (1 - (1 - p) ** 2)))
+      .then(() => new Promise((r) => setTimeout(r, t.hold)))
+      .then(() => tween(t.fade, (p) => bossPaint(at.x, at.y, zoom(FACE_HOLD, FACE_FAR, p * p))))
+      .then(() => { wg.clearRect(0, 0, 320, 180); wipeEl.classList.remove('on'); Sound.stopBoss(); });
   }
 
   /* mid: 완전히 닫혔을 때 할 일. hold: 검은 화면 유지 시간. 열리는 자리 to */
@@ -480,9 +486,10 @@
   /* 서 있는 캐릭터 표정: 긴박 > 음악 > 기본 */
   function heroMood() {
     const playing = currentAudio && !currentAudio.paused;
+    const timing = state.screen === 'question' && state.timer && state.timer.status === 'running';
     Object.values(heroes).forEach((f) => {
       if (!f.parked) return;
-      f.pose(urgentNow && f === heroes.gureum ? 'nervous' : playing ? 'groove' : 'idle');
+      f.pose((timing || urgentNow) && f === heroes.gureum ? 'nervous' : playing ? 'groove' : 'idle');
     });
   }
   function park(...list) { list.forEach((f) => { f.parked = true; f.pose('idle'); }); heroMood(); }
@@ -1155,7 +1162,7 @@
     const runners = Object.values(heroes).map((f) => ({ f, anchor: RUNNER_HOME[f.kind], owned: false, moveId: 0, jump: null }));
     const SPEED = 300, JUMP_MS = 620, GAP = 440;
     const HERO_HALF_WIDTH = 40, CLEARANCE = 18, EDGE_GAP = 8, DODGE_RISE = .12;
-    let holds = 0, stopped = false, last = 0, time = 0, serial = monsters.length, ready = false;
+    let holds = 0, stopped = false, last = 0, time = 0, serial = monsters.length, ready = false, timerHeld = false;
     const readyAfter = performance.now() + (scr.classList.contains('instant') ? 0 : 600);
     const valid = () => !stopped && alive(s) && scr.isConnected;
     const resetCourse = () => {
@@ -1188,6 +1195,10 @@
     };
     function pinClock() {
       if (!clockEl || !clockEl.isConnected) return;
+      if (state.timer && ['running', 'stopped'].includes(state.timer.status)) {
+        carryClock();
+        return;
+      }
       /* 둘 다 계속 달릴 수 있게 시계를 캐릭터 몸에서 분리해 문제 창 아래 오른쪽에 고정한다. */
       if (clockEl.parentElement !== actors) { actors.appendChild(clockEl); clockEl.classList.add('cast-clock'); }
     }
@@ -1215,6 +1226,12 @@
       const dt = Math.min(.04, (now - (last || now)) / 1000); last = now;
       pinClock();
       if (holds || busy || document.querySelector('.modal-back, .panel')) return;
+      if (state.timer && ['running', 'stopped'].includes(state.timer.status)) {
+        if (!timerHeld) { timerHeld = true; cancel(); }
+        scr.dataset.castPhase = 'timer';
+        return;
+      }
+      timerHeld = false;
       time += dt;
       runners.forEach((r) => {
         const f = r.f;
@@ -1530,6 +1547,12 @@
     paintClockSprite(false);
     return clockEl;
   }
+  function carryClock() {
+    if (!clockEl || !clockEl.isConnected) return;
+    if (clockEl.parentElement !== heroes.noeul.el) heroes.noeul.el.appendChild(clockEl);
+    clockEl.classList.remove('cast-clock');
+    clockEl.style.top = `${clockTop(heroes.noeul)}px`;
+  }
   function paintClockSprite(urgent) {
     const c = $('canvas', clockEl);
     const g = c.getContext('2d');
@@ -1654,6 +1677,7 @@
     /* 노을이가 시계를 번쩍 든다 */
     const fresh = !clockEl || !clockEl.isConnected;
     ensureClock();
+    carryClock();
     clockEl.classList.remove('pop'); void clockEl.offsetWidth; clockEl.classList.add('pop');
     noeul.carry({ slot: 'top', sprite: 'none' });
     unpark(noeul);
@@ -1697,6 +1721,7 @@
     Sound.play('timerStart', { sec: t.duration });
     bump(block || $('#timerStop'));
     heroes.gureum.say('다시 시작!', 1200);
+    heroMood();
     save();
     paintTimerButtons();
   }
@@ -2041,6 +2066,14 @@
   });
   $('#hudFull').onclick = (e) => { e.currentTarget.blur(); toggleFull(); };
   $('#hudPanel').onclick = (e) => { e.currentTarget.blur(); openPanel(); };
+  function initAudioControls() {
+    [['sfx', Sound], ['bgm', Bgm]].forEach(([kind, audio]) => {
+      const input = $(`#${kind}Volume`), output = $(`#${kind}Value`);
+      const paint = () => { input.value = Math.round(audio.getVolume() * 100); output.textContent = `${input.value}%`; };
+      input.oninput = () => { audio.setVolume(Number(input.value) / 100); paint(); };
+      paint();
+    });
+  }
 
   /* 전체화면과 소리는 브라우저 정책상 첫 입력 뒤에만 가능하다 */
   let firstGesture = true;
@@ -2049,7 +2082,7 @@
     Bgm.start();
     if (firstGesture) {
       firstGesture = false;
-      const onHud = e.target && e.target.closest && e.target.closest('#hudFull');
+      const onHud = e.target && e.target.closest && e.target.closest('#hud');
       if (SET.autoFullscreen && !onHud) enterFull();
     }
   };
@@ -2067,6 +2100,7 @@
      ========================================================= */
   function boot() {
     fit();
+    initAudioControls();
     window.addEventListener('resize', fit);
     World.init($('#world'), SET.snowAmount);
     Fx.init($('#fx'));

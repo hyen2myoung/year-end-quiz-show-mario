@@ -29,19 +29,47 @@
 (function () {
   const SET = window.QUIZ_SETTINGS || {};
   const DIR = 'assets/sfx/';
-  const vol = () => Math.max(0, Math.min(1, SET.sfxVolume == null ? 0.8 : SET.sfxVolume));
+  const clamp = (value, fallback) => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
+  const AUDIO_KEY = `quizshow:${SET.storageKey || 'default'}:audio`;
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(AUDIO_KEY)) || {}; } catch (e) {}
+  const levels = { sfx: clamp(saved.sfx, clamp(SET.sfxVolume, .8)), bgm: clamp(saved.bgm, clamp(SET.bgmVolume, .5)) };
+  const stageRatio = SET.bgmVolume > 0 && SET.stageBgmVolume != null ? SET.stageBgmVolume / SET.bgmVolume : .52;
+  const vol = () => levels.sfx;
+  function saveLevels() { try { localStorage.setItem(AUDIO_KEY, JSON.stringify(levels)); } catch (e) {} }
 
   /* ---------- 파일 효과음: 미리 읽어 두고, 겹쳐 나야 하면 복제해서 튼다 ---------- */
   const FILES = ['jump', 'stomp', 'pipe', 'bump', 'coin', 'item', 'powerup', '1up', 'timeup', 'clear', 'flag', 'castle', 'fireworks', 'bossfire'];
   /* 보스 웃음 (미리 읽어 두면 파일이 있는지 먼저 알 수 있다): assets/sfx/laugh.mp3 를 넣으면 그 소리, 없으면 Bowser Fire 로 대신 */
-  let laugh = null, noLaugh = false;
-  function bossLaugh() {
+  let laugh = null, noLaugh = false, bossAudio = null, bossFrame = 0, bossGain = 0, bossToken = 0;
+  function stopBoss() {
+    bossToken++;
+    cancelAnimationFrame(bossFrame); bossFrame = 0; bossGain = 0;
+    if (bossAudio) { bossAudio.pause(); bossAudio.volume = 0; bossAudio = null; }
+  }
+  function bossLaugh({ duration = 1590, fadeIn = 700, fadeOut = 240, fromEnd = false } = {}) {
+    stopBoss();
     bossLaugh.pre();
-    if (noLaugh || !laugh) return file('bossfire');
-    laugh.volume = vol();
-    try { laugh.currentTime = 0; } catch (e) {}
-    const p = laugh.play();
-    if (p && p.catch) p.catch(() => setTimeout(() => { if (noLaugh) file('bossfire'); }, 80));
+    const a = noLaugh || !laugh ? takeFile('bossfire') : laugh;
+    if (!a) return;
+    bossAudio = a;
+    const token = bossToken, started = performance.now();
+    const seek = () => {
+      if (token !== bossToken) return;
+      try { a.currentTime = fromEnd && Number.isFinite(a.duration) ? Math.max(0, a.duration - duration / 1000) : 0; } catch (e) {}
+    };
+    if (a.readyState >= 1) seek(); else a.addEventListener('loadedmetadata', seek, { once: true });
+    a.volume = 0;
+    const p = a.play(); if (p && p.catch) p.catch(() => {});
+    const frame = (now) => {
+      if (token !== bossToken) return;
+      const age = now - started;
+      if (age >= duration) { stopBoss(); return; }
+      bossGain = Math.max(0, Math.min(1, age / Math.max(1, fadeIn), (duration - age) / Math.max(1, fadeOut)));
+      a.volume = vol() * bossGain;
+      bossFrame = requestAnimationFrame(frame);
+    };
+    bossFrame = requestAnimationFrame(frame);
   }
   bossLaugh.pre = () => { if (!laugh && !noLaugh) { laugh = new Audio(DIR + 'laugh.mp3'); laugh.preload = 'auto'; laugh.addEventListener('error', () => { noLaugh = true; laugh = null; }); } };
   const pool = {};
@@ -53,11 +81,17 @@
       pool[n] = [a];
     });
   }
-  function file(n, gain = 1) {
+  function takeFile(n) {
     const list = pool[n] || (loadAll(), pool[n]);
     if (!list) return;
     let a = list.find((x) => x.paused || x.ended);
     if (!a) { if (list.length >= 6) a = list[0]; else { a = list[0].cloneNode(); list.push(a); } }
+    return a;
+  }
+  function file(n, gain = 1) {
+    const a = takeFile(n);
+    if (!a) return;
+    a.sfxGain = gain;
     a.volume = Math.min(1, vol() * gain);
     try { a.currentTime = 0; } catch (e) {}
     const p = a.play();
@@ -65,9 +99,12 @@
   }
 
   /* ---------- 코드로 만드는 8비트 삑 소리 ---------- */
-  let ctx = null;
+  let ctx = null, master = null;
   function ac() {
-    if (!ctx) { const C = window.AudioContext || window.webkitAudioContext; if (!C) return null; ctx = new C(); }
+    if (!ctx) {
+      const C = window.AudioContext || window.webkitAudioContext; if (!C) return null;
+      ctx = new C(); master = ctx.createGain(); master.gain.value = vol(); master.connect(ctx.destination);
+    }
     if (ctx.state === 'suspended') ctx.resume();
     return ctx;
   }
@@ -80,9 +117,9 @@
       if (f) {
         const o = c.createOscillator(), g = c.createGain();
         o.type = type; o.frequency.value = f;
-        g.gain.setValueAtTime(gain * vol(), t);
+        g.gain.setValueAtTime(gain, t);
         g.gain.exponentialRampToValueAtTime(0.0008, t + d);
-        o.connect(g).connect(c.destination);
+        o.connect(g).connect(master);
         o.start(t); o.stop(t + d + 0.02);
       }
       t += d;
@@ -119,6 +156,15 @@
   const Sound = {
     enabled: !!SET.sound,
     timer: Timer,
+    stopBoss,
+    getVolume() { return levels.sfx; },
+    setVolume(value) {
+      levels.sfx = clamp(value, levels.sfx); saveLevels();
+      Object.values(pool).flat().forEach((a) => { if (a !== bossAudio) a.volume = Math.min(1, vol() * (a.sfxGain == null ? 1 : a.sfxGain)); });
+      if (Timer.a) Timer.a.volume = vol();
+      if (bossAudio) bossAudio.volume = vol() * bossGain;
+      if (master) master.gain.setTargetAtTime(vol(), ctx.currentTime, .01);
+    },
     play(name, opts = {}) {
       if (!this.enabled) return;
       /* 문제 중 자동 캐릭터 연출은 무음. 타이머와 직접 누른 정답 조작의 소리는 유지한다. */
@@ -140,7 +186,7 @@
         case 'reveal': file('item'); setTimeout(() => file('powerup'), 520); break;
         case 'clear': if (window.Bgm) window.Bgm.quiet(5700); file('clear'); break;
         case 'flag': file('flag'); break;
-        case 'boss': bossLaugh(); break;
+        case 'boss': bossLaugh(opts); break;
         case 'allClear':
           if (window.Bgm) window.Bgm.quiet(7000);
           file('castle'); setTimeout(() => file('fireworks', 0.8), 400); break;
@@ -158,9 +204,10 @@
      지도 곡은 문제를 풀고 돌아왔을 때 멈췄던 곳부터 이어서 나온다. */
   const Bgm = {
     unlocked: false, want: null, holds: {}, quietUntil: 0, players: {}, lists: {},
+    getVolume() { return levels.bgm; },
+    setVolume(value) { levels.bgm = clamp(value, levels.bgm); saveLevels(); this.sync({ immediate: true }); },
     vol() {
-      const level = this.want && this.want.startsWith('stage:') ? SET.stageBgmVolume : SET.bgmVolume;
-      return Math.max(0, Math.min(1, level == null ? (SET.bgmVolume == null ? 0.5 : SET.bgmVolume) : level));
+      return clamp(levels.bgm * (this.want && this.want.startsWith('stage:') ? stageRatio : 1), 0);
     },
     player(name) {
       if (this.players[name]) return this.players[name];
@@ -196,7 +243,8 @@
       const pl = on && this.player(on);
       if (!pl) return;
       if (pl.a.paused) { pl.a.volume = 0; pl.a.play().catch(() => {}); }
-      this.fadeTo(pl, this.vol(), 600);
+      if (immediate) { clearInterval(pl.fade); pl.a.volume = this.vol(); }
+      else this.fadeTo(pl, this.vol(), 600);
     },
     /* list 를 주면 그 곡 목록으로 등록. restart 면 처음부터 (새 스테이지에 들어갈 때) */
     scene(name, list, { restart = false } = {}) {

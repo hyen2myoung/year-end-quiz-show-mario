@@ -31,6 +31,10 @@
       <button id="hudFull" title="전체화면 (F)">⛶</button>
       <button id="hudPanel" title="운영 패널 (O)">⚙</button>
     </div>
+    <div class="hud-audio" aria-label="소리 조절">
+      <label for="sfxVolume"><span>효과음</span><input id="sfxVolume" type="range" min="0" max="100" step="1" aria-label="효과음 소리"><output id="sfxValue" for="sfxVolume"></output></label>
+      <label for="bgmVolume"><span>배경음</span><input id="bgmVolume" type="range" min="0" max="100" step="1" aria-label="배경음 소리"><output id="bgmValue" for="bgmVolume"></output></label>
+    </div>
   </div>
   <div id="vignette"></div>
   <canvas id="wipe"></canvas>
