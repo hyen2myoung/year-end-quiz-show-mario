@@ -204,13 +204,16 @@
   /* 닫기: 화면 가득 → 얼굴 크기에서 잠깐 멈춤 → 깜깜 */
   /* 얼굴이 멈춰 있을 때 화면 밖으로 잘리지 않게 가운데 쪽으로 당긴다 */
   const faceAt = (p) => ({ x: Math.max(340, Math.min(1580, p.x)), y: Math.max(330, Math.min(640, p.y)) });
-  const BOSS_CLOSE = { move: 700, hold: 650, fade: 240 };
+  /* laugh.mp3: 원본 영상 1.23~3.92초, 앞 무음을 뺀 웃음 한 번(2.69초).
+     얼굴 등장과 동시에 시작하고 끝까지 들려준 뒤 입장 카드를 띄운다. */
+  const BOSS_CLOSE = { move: 700, hold: 1670, fade: 320 };
   const BOSS_OPEN = { move: 240, hold: 450, fade: 650 };
-  function bossClose(at) {
+  async function bossClose(at) {
     at = faceAt(at);
     wipeEl.classList.add('on');
     const t = BOSS_CLOSE;
-    Sound.play('boss', { duration: t.move + t.hold + t.fade, fadeIn: t.move, fadeOut: t.fade });
+    bossPaint(at.x, at.y, FACE_FAR);
+    await Sound.play('boss', { duration: t.move + t.hold + t.fade, fadeIn: 25, fadeOut: 100 });
     const ease = (t) => 1 - (1 - t) ** 2;
     return tween(t.move, (p) => bossPaint(at.x, at.y, zoom(FACE_FAR, FACE_HOLD, ease(p))))
       .then(() => new Promise((r) => setTimeout(r, t.hold)))
@@ -220,7 +223,7 @@
   /* 열기: 깜깜 → 얼굴이 쑥 → 잠깐 멈춤 → 화면 가득 */
   function bossOpen(at) {
     const t = BOSS_OPEN;
-    Sound.play('boss', { duration: t.move + t.hold + t.fade, fadeIn: t.move, fadeOut: t.fade, fromEnd: true });
+    /* 웃음은 입장 때 한 번만. 카드를 읽은 뒤 문제를 열 때는 반복하지 않는다. */
     return tween(t.move, (p) => bossPaint(at.x, at.y, FACE_HOLD * (1 - (1 - p) ** 2)))
       .then(() => new Promise((r) => setTimeout(r, t.hold)))
       .then(() => tween(t.fade, (p) => bossPaint(at.x, at.y, zoom(FACE_HOLD, FACE_FAR, p * p))))

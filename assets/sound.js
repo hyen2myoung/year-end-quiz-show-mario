@@ -47,29 +47,32 @@
     cancelAnimationFrame(bossFrame); bossFrame = 0; bossGain = 0;
     if (bossAudio) { bossAudio.pause(); bossAudio.volume = 0; bossAudio = null; }
   }
-  function bossLaugh({ duration = 1590, fadeIn = 700, fadeOut = 240, fromEnd = false } = {}) {
+  function bossLaugh({ duration = 2690, fadeIn = 25, fadeOut = 100 } = {}) {
     stopBoss();
     bossLaugh.pre();
     const a = noLaugh || !laugh ? takeFile('bossfire') : laugh;
     if (!a) return;
     bossAudio = a;
-    const token = bossToken, started = performance.now();
+    const token = bossToken;
     const seek = () => {
       if (token !== bossToken) return;
-      try { a.currentTime = fromEnd && Number.isFinite(a.duration) ? Math.max(0, a.duration - duration / 1000) : 0; } catch (e) {}
+      try { a.currentTime = 0; } catch (e) {}
     };
     if (a.readyState >= 1) seek(); else a.addEventListener('loadedmetadata', seek, { once: true });
     a.volume = 0;
-    const p = a.play(); if (p && p.catch) p.catch(() => {});
-    const frame = (now) => {
+    const frame = () => {
       if (token !== bossToken) return;
-      const age = now - started;
+      /* 디코딩·버퍼링 대기 시간을 페이드에 포함하지 않는다. */
+      const age = a.currentTime * 1000;
       if (age >= duration) { stopBoss(); return; }
       bossGain = Math.max(0, Math.min(1, age / Math.max(1, fadeIn), (duration - age) / Math.max(1, fadeOut)));
       a.volume = vol() * bossGain;
       bossFrame = requestAnimationFrame(frame);
     };
-    bossFrame = requestAnimationFrame(frame);
+    const p = a.play();
+    return Promise.resolve(p).then(() => {
+      if (token === bossToken) bossFrame = requestAnimationFrame(frame);
+    }).catch(() => { if (token === bossToken) stopBoss(); });
   }
   bossLaugh.pre = () => { if (!laugh && !noLaugh) { laugh = new Audio(DIR + 'laugh.mp3'); laugh.preload = 'auto'; laugh.addEventListener('error', () => { noLaugh = true; laugh = null; }); } };
   const pool = {};
@@ -186,7 +189,7 @@
         case 'reveal': file('item'); setTimeout(() => file('powerup'), 520); break;
         case 'clear': if (window.Bgm) window.Bgm.quiet(5700); file('clear'); break;
         case 'flag': file('flag'); break;
-        case 'boss': bossLaugh(opts); break;
+        case 'boss': return bossLaugh(opts);
         case 'allClear':
           if (window.Bgm) window.Bgm.quiet(7000);
           file('castle'); setTimeout(() => file('fireworks', 0.8), 400); break;
